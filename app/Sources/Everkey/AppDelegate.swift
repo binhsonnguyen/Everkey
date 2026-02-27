@@ -1,11 +1,14 @@
 import Cocoa
+import EverkeyEngine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private let eventTapManager = EventTapManager()
-    private let keyboardHandler = KeyboardEventHandler()
+    private let textInjector = CGTextInjector()
+    private var keyboardHandler: KeyboardEventHandler!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        keyboardHandler = KeyboardEventHandler(injector: textInjector)
         setupStatusBar()
 
         if !checkAccessibilityPermission() {
@@ -44,7 +47,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         eventTapManager.onEvent = { [weak self] proxy, type, event in
             guard let self = self else { return Unmanaged.passUnretained(event) }
-            return self.keyboardHandler.handleEvent(proxy: proxy, type: type, event: event)
+            self.textInjector.currentProxy = proxy
+            let keyEvent = CGEventAdapter.adapt(event: event, type: type)
+            let suppress = self.keyboardHandler.handleEvent(keyEvent)
+            return suppress ? nil : Unmanaged.passUnretained(event)
         }
 
         if !eventTapManager.start() {
