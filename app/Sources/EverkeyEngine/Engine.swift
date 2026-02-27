@@ -62,6 +62,7 @@ struct Engine {
     private mutating func handleLiteral(_ char: Character, shift: Bool) {
         let lower = Character(char.lowercased())
         buffer.append(VnChar(base: lower, uppercase: shift))
+        relocateToneIfNeeded()
     }
 
     private mutating func handleModifier(_ modifier: LetterModifier, key: Character) {
@@ -93,6 +94,14 @@ struct Engine {
             buffer.append(VnChar(base: lowerKey, uppercase: false))
         } else {
             buffer[targetIndex].modifier = modifier
+            // ươ pattern: horn on 'o' also applies to preceding 'u'
+            if modifier == .horn && buffer[targetIndex].base == "o"
+                && targetIndex > 0
+                && buffer[targetIndex - 1].base == "u"
+                && buffer[targetIndex - 1].isVowel
+                && buffer[targetIndex - 1].modifier == nil {
+                buffer[targetIndex - 1].modifier = .horn
+            }
             relocateToneIfNeeded()
         }
     }
@@ -140,36 +149,46 @@ struct Engine {
     }
 
     /// Find the vowel that should receive the tone.
-    /// Rules:
-    /// 1. Vowel with modifier (circumflex/horn/breve) gets priority
-    /// 2. Single vowel → tone on it
-    /// 3. Diphthong without coda → tone on first vowel
-    /// 4. Diphthong with coda → tone on second vowel
-    /// 5. Triple vowel → tone on middle vowel
+    /// 1. Filter out onset vowels (u in qu, i in gi)
+    /// 2. If exactly one modified vowel → it gets the tone
+    /// 3. Otherwise apply positional rules: single → it, diphthong → first/second by coda, triple → middle
     private func findToneTarget() -> Int? {
         let vowelIndices = buffer.indices.filter { buffer[$0].isVowel }
         guard !vowelIndices.isEmpty else { return nil }
 
-        // Rule 1: modified vowel gets priority
-        if let modified = vowelIndices.first(where: { buffer[$0].modifier != nil }) {
-            return modified
+        // Filter out onset vowels (qu, gi)
+        let nucleusIndices = vowelIndices.filter { !isOnsetVowel(at: $0) }
+        guard !nucleusIndices.isEmpty else { return vowelIndices.last }
+
+        // Exactly one modified vowel → it gets the tone
+        let modifiedIndices = nucleusIndices.filter { buffer[$0].modifier != nil }
+        if modifiedIndices.count == 1 {
+            return modifiedIndices[0]
         }
 
-        // Rule 2: single vowel
-        if vowelIndices.count == 1 {
-            return vowelIndices[0]
-        }
+        // Multiple modified vowels → apply positional rules to them
+        // Otherwise → apply positional rules to all nucleus vowels
+        let pool = modifiedIndices.count > 1 ? modifiedIndices : nucleusIndices
 
-        // Rule 5: triple vowel → middle
-        if vowelIndices.count >= 3 {
-            return vowelIndices[1]
-        }
+        if pool.count == 1 { return pool[0] }
+        if pool.count >= 3 { return pool[1] }
 
-        // Rules 3-4: diphthong
-        let lastVowelIndex = vowelIndices.last!
-        let hasCoda = lastVowelIndex < buffer.count - 1
+        let lastPoolIndex = pool.last!
+        let hasCoda = lastPoolIndex < buffer.count - 1
+        return hasCoda ? pool[1] : pool[0]
+    }
 
-        return hasCoda ? vowelIndices[1] : vowelIndices[0]
+    /// A vowel is part of the onset if it's 'u' after 'q' or 'i' after 'g'
+    /// and there's another vowel after it in the buffer.
+    private func isOnsetVowel(at index: Int) -> Bool {
+        guard index > 0 else { return false }
+        let hasVowelAfter = buffer[(index + 1)...].contains { $0.isVowel }
+        guard hasVowelAfter else { return false }
+
+        let prev = buffer[index - 1]
+        if buffer[index].base == "u" && prev.base == "q" { return true }
+        if buffer[index].base == "i" && prev.base == "g" && prev.modifier == nil { return true }
+        return false
     }
 
     private mutating func handleBackspace() {

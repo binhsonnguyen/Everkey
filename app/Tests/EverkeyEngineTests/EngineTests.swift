@@ -227,6 +227,24 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(typeWord("vietje"), "Vi\u{1EC7}t")
     }
 
+    // MARK: - Advanced tone placement (qu/gi onset, ươ)
+
+    func test_quas_produces_quá() {
+        XCTAssertEqual(typeWord("quas", uppercase: false), "qu\u{00E1}")
+    }
+
+    func test_gias_produces_giá() {
+        XCTAssertEqual(typeWord("gias", uppercase: false), "gi\u{00E1}")
+    }
+
+    func test_thuowng_produces_thương() {
+        XCTAssertEqual(typeWord("thuowng", uppercase: false), "th\u{01B0}\u{01A1}ng")
+    }
+
+    func test_thuowfng_produces_thường() {
+        XCTAssertEqual(typeWord("thuowfng", uppercase: false), "th\u{01B0}\u{1EDD}ng")
+    }
+
     // MARK: - Toggle (undo diacritics by repeating key)
 
     func test_toggle_modifier_aaa_produces_aa() {
