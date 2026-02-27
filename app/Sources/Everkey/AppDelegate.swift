@@ -2,6 +2,7 @@ import Cocoa
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
+    private let eventTapManager = EventTapManager()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusBar()
@@ -9,6 +10,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if !checkAccessibilityPermission() {
             promptAccessibilityPermission()
         }
+
+        setupEventTap()
     }
 
     // MARK: - Status Bar
@@ -23,6 +26,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Quit Everkey", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         return menu
+    }
+
+    // MARK: - Event Tap
+
+    private func setupEventTap() {
+        eventTapManager.onEvent = { proxy, type, event in
+            // Temporary: log keyDown events to verify interception
+            if type == .keyDown {
+                let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+                NSLog("[Everkey] keyDown: keyCode=\(keyCode)")
+            }
+            return Unmanaged.passUnretained(event)
+        }
+
+        if !eventTapManager.start() {
+            NSLog("[Everkey] Failed to create event tap. Check Accessibility permission.")
+        }
     }
 
     // MARK: - Accessibility Permission
