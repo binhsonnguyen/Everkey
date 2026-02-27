@@ -4,6 +4,12 @@ public class KeyboardEventHandler {
     public private(set) var isVietnamese = true
     public var onToggle: ((Bool) -> Void)?
 
+    private let passthroughKeys: Set<Int64> = [
+        0x24, // Enter (Return)
+        0x30, // Tab
+        0x35, // Escape
+    ]
+
     private let cursorMovementKeys: Set<Int64> = [
         0x7B, // Left Arrow
         0x7C, // Right Arrow
@@ -52,6 +58,12 @@ public class KeyboardEventHandler {
 
         // Key repeat → pass through
         if event.isRepeat { return false }
+
+        // Pass-through keys (Enter, Tab, Escape) → reset engine, pass through real event
+        if passthroughKeys.contains(keyCode) {
+            engine.reset()
+            return false
+        }
 
         // Cursor movement → reset engine, pass through
         if cursorMovementKeys.contains(keyCode) {

@@ -186,6 +186,23 @@ final class KeyboardEventHandlerTests: XCTestCase {
         XCTAssertEqual(injector.lastText, "Á")
     }
 
+    // MARK: - Pass-through Keys (Enter, Tab, Escape)
+
+    func test_enterKey_resetsEngine_passesThrough() {
+        _ = handler.handleEvent(keyDown("v"))
+        _ = handler.handleEvent(keyDown("i"))
+
+        let enterEvent = KeyEvent(type: .keyDown, keyCode: 0x24, character: "\n")
+        let suppress = handler.handleEvent(enterEvent)
+        XCTAssertFalse(suppress, "Enter must pass through as real key event")
+
+        // Engine reset — "s" starts a fresh word, not tone on "i"
+        injector.callCount = 0
+        _ = handler.handleEvent(keyDown("s"))
+        XCTAssertEqual(injector.lastText, "s")
+        XCTAssertEqual(injector.lastBackspaceCount, 0)
+    }
+
     // MARK: - resetEngine
 
     func test_resetEngine_clearsBuffer() {
