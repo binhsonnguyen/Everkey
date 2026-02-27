@@ -267,6 +267,26 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(typeWord("aff", uppercase: false), "af")
     }
 
+    // MARK: - Word break & edge cases
+
+    func test_number_is_word_break() {
+        var engine = Engine()
+        _ = engine.processKey(key: "a", shift: false)
+        _ = engine.processKey(key: "s", shift: false) // á
+        _ = engine.processKey(key: "1", shift: false) // word break
+        let output = engine.processKey(key: "b", shift: false)
+        XCTAssertEqual(output, EngineOutput(backspaceCount: 0, committedText: "b"))
+    }
+
+    func test_inactive_engine_passes_through() {
+        var engine = Engine()
+        engine.setActive(false)
+        _ = engine.processKey(key: "a", shift: false)
+        let output = engine.processKey(key: "s", shift: false)
+        // No Telex processing: 's' is just 's', not a tone
+        XCTAssertEqual(output, EngineOutput(backspaceCount: 0, committedText: "s"))
+    }
+
     // MARK: - Revert diacritics
 
     func test_revert_undoes_tone() {

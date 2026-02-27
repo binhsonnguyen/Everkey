@@ -49,6 +49,8 @@ enum KeyAction: Equatable {
         // Word break
         case " ", "\n", "\t":
             return .wordBreak
+        case _ where lower.isNumber:
+            return .wordBreak
         case _ where ".,;:!?/\\|<>=+-*&%$#@~`\"'()[]{}".contains(lower):
             return .wordBreak
 
