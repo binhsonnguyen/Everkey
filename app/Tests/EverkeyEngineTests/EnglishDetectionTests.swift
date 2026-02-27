@@ -11,4 +11,18 @@ final class ConsonantClusterDetectorTests: XCTestCase {
         let buffer = [VnChar(base: "f"), VnChar(base: "r")]
         XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
     }
+
+    func test_all_valid_digraphs_areVietnamese() {
+        let digraphs = ["ch", "gh", "gi", "kh", "ng", "nh", "ph", "qu", "th", "tr"]
+        for digraph in digraphs {
+            let buffer = digraph.map { VnChar(base: $0) }
+            XCTAssertFalse(detector.isNonVietnamese(buffer: buffer),
+                           "'\(digraph)' should be valid Vietnamese onset")
+        }
+    }
+
+    func test_ngh_trigraph_isVietnamese() {
+        let buffer = [VnChar(base: "n"), VnChar(base: "g"), VnChar(base: "h")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
 }
