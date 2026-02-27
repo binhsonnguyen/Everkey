@@ -10,3 +10,5 @@
 
 # Claude Code
 .claude/
+
+.build
