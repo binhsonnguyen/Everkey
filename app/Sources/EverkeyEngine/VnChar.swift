@@ -1,4 +1,4 @@
-struct VnChar: Equatable {
+public struct VnChar: Equatable {
     let base: Character
     var uppercase: Bool
     var modifier: LetterModifier?

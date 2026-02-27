@@ -46,3 +46,17 @@ final class ConsonantClusterDetectorTests: XCTestCase {
         XCTAssertFalse(detector.isNonVietnamese(buffer: []))
     }
 }
+
+// MARK: - B. Engine Integration Tests
+
+final class EnglishDetectionEngineTests: XCTestCase {
+
+    func test_frost_skipsTelex() {
+        var engine = Engine(detector: ConsonantClusterDetector())
+        var output = EngineOutput(backspaceCount: 0, committedText: "")
+        for c in "frost" {
+            output = engine.processKey(key: c, shift: false)
+        }
+        XCTAssertEqual(output.committedText, "frost")
+    }
+}

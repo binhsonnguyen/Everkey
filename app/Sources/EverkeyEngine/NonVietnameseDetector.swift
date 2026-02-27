@@ -1,19 +1,21 @@
 // MARK: - Protocol
 
-protocol NonVietnameseDetecting {
+public protocol NonVietnameseDetecting {
     func isNonVietnamese(buffer: [VnChar]) -> Bool
 }
 
 // MARK: - Consonant Cluster Detector (Method 1)
 
-struct ConsonantClusterDetector: NonVietnameseDetecting {
+public struct ConsonantClusterDetector: NonVietnameseDetecting {
+
+    public init() {}
 
     private static let validOnsets: Set<String> = [
         "ch", "gh", "gi", "kh", "ng", "nh", "ph", "qu", "th", "tr",
         "ngh",
     ]
 
-    func isNonVietnamese(buffer: [VnChar]) -> Bool {
+    public func isNonVietnamese(buffer: [VnChar]) -> Bool {
         let cluster = leadingConsonants(buffer)
         guard cluster.count >= 2 else { return false }
         return !Self.validOnsets.contains(cluster)

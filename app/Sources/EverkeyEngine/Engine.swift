@@ -2,8 +2,12 @@ public struct Engine {
     private(set) var buffer: [VnChar] = []
     private var rawKeys: [Character] = []
     private var active: Bool = true
+    private var nonVietnamese: Bool = false
+    private var detector: NonVietnameseDetecting?
 
-    public init() {}
+    public init(detector: NonVietnameseDetecting? = nil) {
+        self.detector = detector
+    }
 
     public mutating func processKey(key: Character, shift: Bool) -> EngineOutput {
         guard active else {
@@ -11,12 +15,21 @@ public struct Engine {
         }
 
         let previousLength = buffer.count
-        let action = KeyAction.classify(key: key, buffer: buffer)
+        var action = KeyAction.classify(key: key, buffer: buffer)
+
+        if nonVietnamese {
+            switch action {
+            case .conditionalTone, .conditionalModifier, .removeTone:
+                action = .literal(key)
+            default: break
+            }
+        }
 
         switch action {
         case .literal(let char):
             rawKeys.append(key)
             handleLiteral(char, shift: shift)
+            detectNonVietnameseIfNeeded()
         case .conditionalModifier(let modifier):
             rawKeys.append(key)
             handleModifier(modifier, key: key)
@@ -32,6 +45,7 @@ public struct Engine {
         case .backspace:
             rawKeys.removeLast(min(1, rawKeys.count))
             handleBackspace()
+            reevaluateNonVietnamese()
         }
 
         let committedText = UnicodeMap.resolveBuffer(buffer)
@@ -52,9 +66,15 @@ public struct Engine {
         return EngineOutput(backspaceCount: displayedLength, committedText: raw)
     }
 
+    public mutating func setDetector(_ detector: NonVietnameseDetecting?) {
+        self.detector = detector
+        if detector == nil { nonVietnamese = false }
+    }
+
     public mutating func reset() {
         buffer.removeAll()
         rawKeys.removeAll()
+        nonVietnamese = false
     }
 
     // MARK: - Handlers
@@ -189,6 +209,18 @@ public struct Engine {
         if buffer[index].base == "u" && prev.base == "q" { return true }
         if buffer[index].base == "i" && prev.base == "g" && prev.modifier == nil { return true }
         return false
+    }
+
+    private mutating func detectNonVietnameseIfNeeded() {
+        guard !nonVietnamese else { return }
+        guard let detector = detector else { return }
+        guard !buffer.contains(where: { $0.isVowel }) else { return }
+        nonVietnamese = detector.isNonVietnamese(buffer: buffer)
+    }
+
+    private mutating func reevaluateNonVietnamese() {
+        guard let detector = detector else { return }
+        nonVietnamese = detector.isNonVietnamese(buffer: buffer)
     }
 
     private mutating func handleBackspace() {
