@@ -203,6 +203,21 @@ final class KeyboardEventHandlerTests: XCTestCase {
         XCTAssertEqual(injector.lastBackspaceCount, 0)
     }
 
+    func test_tabKey_resetsEngine_passesThrough() {
+        _ = handler.handleEvent(keyDown("v"))
+        _ = handler.handleEvent(keyDown("i"))
+
+        let tabEvent = KeyEvent(type: .keyDown, keyCode: 0x30, character: "\t")
+        let suppress = handler.handleEvent(tabEvent)
+        XCTAssertFalse(suppress, "Tab must pass through as real key event")
+
+        // Engine reset — "s" starts a fresh word, not tone on "i"
+        injector.callCount = 0
+        _ = handler.handleEvent(keyDown("s"))
+        XCTAssertEqual(injector.lastText, "s")
+        XCTAssertEqual(injector.lastBackspaceCount, 0)
+    }
+
     // MARK: - resetEngine
 
     func test_resetEngine_clearsBuffer() {
