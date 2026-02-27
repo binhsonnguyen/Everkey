@@ -24,8 +24,8 @@ enum KeyAction: Equatable {
         case "w" where buffer.hasVowelWithBase("o") || buffer.hasVowelWithBase("u"):
             return .conditionalModifier(.horn)
 
-        // dd → đ (must be consecutive)
-        case "d" where buffer.last?.base == "d" && buffer.last?.modifier == nil:
+        // dd → đ, ddd → dd (toggle)
+        case "d" where buffer.last?.base == "d":
             return .conditionalModifier(.stroke)
 
         // Tone keys — only act when buffer has a vowel

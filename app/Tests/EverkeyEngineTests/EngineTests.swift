@@ -227,6 +227,28 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(typeWord("vietje"), "Vi\u{1EC7}t")
     }
 
+    // MARK: - Toggle (undo diacritics by repeating key)
+
+    func test_toggle_modifier_aaa_produces_aa() {
+        XCTAssertEqual(typeWord("aaa", uppercase: false), "aa")
+    }
+
+    func test_toggle_modifier_aww_produces_aw() {
+        XCTAssertEqual(typeWord("aww", uppercase: false), "aw")
+    }
+
+    func test_toggle_modifier_ddd_produces_dd() {
+        XCTAssertEqual(typeWord("ddd", uppercase: false), "dd")
+    }
+
+    func test_toggle_tone_ass_produces_as() {
+        XCTAssertEqual(typeWord("ass", uppercase: false), "as")
+    }
+
+    func test_toggle_tone_aff_produces_af() {
+        XCTAssertEqual(typeWord("aff", uppercase: false), "af")
+    }
+
     // MARK: - Revert diacritics
 
     func test_revert_undoes_tone() {

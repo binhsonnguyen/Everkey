@@ -19,10 +19,10 @@ struct Engine {
             handleLiteral(char, shift: shift)
         case .conditionalModifier(let modifier):
             rawKeys.append(key)
-            handleModifier(modifier)
+            handleModifier(modifier, key: key)
         case .conditionalTone(let tone):
             rawKeys.append(key)
-            handleTone(tone)
+            handleTone(tone, key: key)
         case .removeTone:
             rawKeys.append(key)
             handleRemoveTone()
@@ -64,12 +64,19 @@ struct Engine {
         buffer.append(VnChar(base: lower, uppercase: shift))
     }
 
-    private mutating func handleModifier(_ modifier: LetterModifier) {
+    private mutating func handleModifier(_ modifier: LetterModifier, key: Character) {
         guard !buffer.isEmpty else { return }
+        let lowerKey = Character(key.lowercased())
 
-        // Stroke (đ) always applies to last char (dd must be consecutive)
+        // Stroke (đ): applies to last char, toggle if already applied
         if modifier == .stroke {
-            buffer[buffer.count - 1].modifier = modifier
+            let lastIndex = buffer.count - 1
+            if buffer[lastIndex].modifier == .stroke {
+                buffer[lastIndex].modifier = nil
+                buffer.append(VnChar(base: lowerKey, uppercase: false))
+            } else {
+                buffer[lastIndex].modifier = modifier
+            }
             return
         }
 
@@ -81,9 +88,9 @@ struct Engine {
         }) else { return }
 
         if buffer[targetIndex].modifier == modifier {
-            // Same modifier already applied → undo: remove modifier, append literal
+            // Same modifier already applied → undo: remove modifier, append key as literal
             buffer[targetIndex].modifier = nil
-            buffer.append(VnChar(base: buffer[targetIndex].base, uppercase: false))
+            buffer.append(VnChar(base: lowerKey, uppercase: false))
         } else {
             buffer[targetIndex].modifier = modifier
             relocateToneIfNeeded()
@@ -115,9 +122,15 @@ struct Engine {
         }
     }
 
-    private mutating func handleTone(_ tone: Tone) {
+    private mutating func handleTone(_ tone: Tone, key: Character) {
         guard let targetIndex = findToneTarget() else { return }
-        buffer[targetIndex].tone = tone
+        if buffer[targetIndex].tone == tone {
+            // Same tone already applied → undo: remove tone, append key as literal
+            buffer[targetIndex].tone = .ngang
+            buffer.append(VnChar(base: Character(key.lowercased()), uppercase: false))
+        } else {
+            buffer[targetIndex].tone = tone
+        }
     }
 
     private mutating func handleRemoveTone() {
