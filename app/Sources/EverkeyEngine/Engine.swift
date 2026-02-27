@@ -1,11 +1,11 @@
-struct Engine {
+public struct Engine {
     private(set) var buffer: [VnChar] = []
     private var rawKeys: [Character] = []
     private var active: Bool = true
 
-    init() {}
+    public init() {}
 
-    mutating func processKey(key: Character, shift: Bool) -> EngineOutput {
+    public mutating func processKey(key: Character, shift: Bool) -> EngineOutput {
         guard active else {
             return EngineOutput(backspaceCount: 0, committedText: String(key))
         }
@@ -38,21 +38,21 @@ struct Engine {
         return EngineOutput(backspaceCount: previousLength, committedText: committedText)
     }
 
-    mutating func setActive(_ active: Bool) {
+    public mutating func setActive(_ active: Bool) {
         self.active = active
         if !active { reset() }
     }
 
     /// Revert diacritics: output the raw keystrokes instead of Vietnamese text.
     /// Called by platform layer when user triggers revert (e.g. double-shift).
-    mutating func revert() -> EngineOutput {
+    public mutating func revert() -> EngineOutput {
         let displayedLength = buffer.count
         let raw = String(rawKeys)
         reset()
         return EngineOutput(backspaceCount: displayedLength, committedText: raw)
     }
 
-    mutating func reset() {
+    public mutating func reset() {
         buffer.removeAll()
         rawKeys.removeAll()
     }

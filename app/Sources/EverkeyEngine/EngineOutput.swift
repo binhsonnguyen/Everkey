@@ -1,4 +1,4 @@
-struct EngineOutput: Equatable {
-    let backspaceCount: Int
-    let committedText: String
+public struct EngineOutput: Equatable {
+    public let backspaceCount: Int
+    public let committedText: String
 }

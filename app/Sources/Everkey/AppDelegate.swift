@@ -3,6 +3,7 @@ import Cocoa
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private let eventTapManager = EventTapManager()
+    private let keyboardHandler = KeyboardEventHandler()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusBar()
@@ -31,13 +32,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Event Tap
 
     private func setupEventTap() {
-        eventTapManager.onEvent = { proxy, type, event in
-            // Temporary: log keyDown events to verify interception
-            if type == .keyDown {
-                let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-                NSLog("[Everkey] keyDown: keyCode=\(keyCode)")
-            }
-            return Unmanaged.passUnretained(event)
+        eventTapManager.onEvent = { [weak self] proxy, type, event in
+            guard let self = self else { return Unmanaged.passUnretained(event) }
+            return self.keyboardHandler.handleEvent(proxy: proxy, type: type, event: event)
         }
 
         if !eventTapManager.start() {
