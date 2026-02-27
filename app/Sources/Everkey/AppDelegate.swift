@@ -13,14 +13,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         setupEventTap()
+        setupAppSwitchObserver()
+        setupSleepWakeObserver()
     }
 
     // MARK: - Status Bar
 
     private func setupStatusBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "V"
+        updateStatusBarTitle(isVietnamese: true)
         statusItem.menu = buildMenu()
+    }
+
+    private func updateStatusBarTitle(isVietnamese: Bool) {
+        statusItem.button?.title = isVietnamese ? "V" : "E"
     }
 
     private func buildMenu() -> NSMenu {
@@ -32,6 +38,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Event Tap
 
     private func setupEventTap() {
+        keyboardHandler.onToggle = { [weak self] isVietnamese in
+            self?.updateStatusBarTitle(isVietnamese: isVietnamese)
+        }
+
         eventTapManager.onEvent = { [weak self] proxy, type, event in
             guard let self = self else { return Unmanaged.passUnretained(event) }
             return self.keyboardHandler.handleEvent(proxy: proxy, type: type, event: event)
@@ -39,6 +49,48 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if !eventTapManager.start() {
             NSLog("[Everkey] Failed to create event tap. Check Accessibility permission.")
+        }
+    }
+
+    // MARK: - App Switch
+
+    private func setupAppSwitchObserver() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(activeAppChanged),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
+    }
+
+    @objc private func activeAppChanged(_ notification: Notification) {
+        keyboardHandler.resetEngine()
+    }
+
+    // MARK: - Sleep/Wake
+
+    private func setupSleepWakeObserver() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(handleSleep),
+            name: NSWorkspace.willSleepNotification,
+            object: nil
+        )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(handleWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func handleSleep() {
+        eventTapManager.stop()
+    }
+
+    @objc private func handleWake() {
+        if !eventTapManager.start() {
+            NSLog("[Everkey] Failed to recreate event tap after wake.")
         }
     }
 

@@ -4,6 +4,8 @@ import EverkeyEngine
 class KeyboardEventHandler {
     private var engine = Engine()
     private let injector = CharacterInjector()
+    private(set) var isVietnamese = true
+    var onToggle: ((Bool) -> Void)?
 
     private let cursorMovementKeys: Set<Int64> = [
         0x7B, // Left Arrow
@@ -15,6 +17,10 @@ class KeyboardEventHandler {
         0x74, // Page Up
         0x79, // Page Down
     ]
+
+    func resetEngine() {
+        engine.reset()
+    }
 
     func handleEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         switch type {
@@ -33,6 +39,15 @@ class KeyboardEventHandler {
     private func handleKeyDown(proxy: CGEventTapProxy, event: CGEvent) -> Unmanaged<CGEvent>? {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         let flags = event.flags
+
+        // Toggle hotkey: Ctrl+Space
+        let spaceKeyCode: Int64 = 0x31
+        if keyCode == spaceKeyCode && flags.contains(.maskControl) {
+            isVietnamese.toggle()
+            engine.setActive(isVietnamese)
+            onToggle?(isVietnamese)
+            return nil  // suppress the hotkey event
+        }
 
         // Key repeat → pass through
         if event.getIntegerValueField(.keyboardEventAutorepeat) != 0 {
