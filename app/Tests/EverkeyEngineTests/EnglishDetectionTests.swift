@@ -25,4 +25,24 @@ final class ConsonantClusterDetectorTests: XCTestCase {
         let buffer = [VnChar(base: "n"), VnChar(base: "g"), VnChar(base: "h")]
         XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
     }
+
+    func test_thr_validPrefixButInvalidFullCluster_isNonVietnamese() {
+        let buffer = [VnChar(base: "t"), VnChar(base: "h"), VnChar(base: "r")]
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_singleConsonant_notDetectable() {
+        let buffer = [VnChar(base: "f")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_ignoresCharsAfterFirstVowel() {
+        // "than" — leading consonants = "th" only, vowel 'a' stops extraction
+        let buffer = "than".map { VnChar(base: $0) }
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_emptyBuffer_notDetectable() {
+        XCTAssertFalse(detector.isNonVietnamese(buffer: []))
+    }
 }
