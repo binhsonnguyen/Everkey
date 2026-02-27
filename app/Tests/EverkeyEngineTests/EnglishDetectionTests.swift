@@ -51,12 +51,88 @@ final class ConsonantClusterDetectorTests: XCTestCase {
 
 final class EnglishDetectionEngineTests: XCTestCase {
 
-    func test_frost_skipsTelex() {
-        var engine = Engine(detector: ConsonantClusterDetector())
+    private func engineWithDetector() -> Engine {
+        Engine(detector: ConsonantClusterDetector())
+    }
+
+    private func type(_ keys: String, into engine: inout Engine) -> EngineOutput {
         var output = EngineOutput(backspaceCount: 0, committedText: "")
-        for c in "frost" {
+        for c in keys {
             output = engine.processKey(key: c, shift: false)
         }
+        return output
+    }
+
+    // MARK: - B1. English words skip Telex
+
+    func test_frost_skipsTelex() {
+        var engine = engineWithDetector()
+        let output = type("frost", into: &engine)
         XCTAssertEqual(output.committedText, "frost")
+    }
+
+    func test_string_skipsTelex() {
+        var engine = engineWithDetector()
+        let output = type("string", into: &engine)
+        XCTAssertEqual(output.committedText, "string")
+    }
+
+    func test_throw_detectedAtThirdConsonant() {
+        var engine = engineWithDetector()
+        let output = type("throw", into: &engine)
+        XCTAssertEqual(output.committedText, "throw")
+    }
+
+    func test_chrome_detectedAtThirdConsonant() {
+        var engine = engineWithDetector()
+        let output = type("chrome", into: &engine)
+        XCTAssertEqual(output.committedText, "chrome")
+    }
+
+    // MARK: - B2. Vietnamese words still work
+
+    func test_thans_producesThán() {
+        var engine = engineWithDetector()
+        let output = type("thans", into: &engine)
+        XCTAssertEqual(output.committedText, "th\u{00E1}n")
+    }
+
+    func test_nghis_producesNghí() {
+        var engine = engineWithDetector()
+        let output = type("nghis", into: &engine)
+        XCTAssertEqual(output.committedText, "ngh\u{00ED}")
+    }
+
+    // MARK: - B3. Backward compatibility
+
+    func test_withoutDetector_frost_stillAppliesTelex() {
+        var engine = Engine()
+        let output = type("frost", into: &engine)
+        // Without detector: 's' consumed as tone sắc on 'o' → frót
+        XCTAssertEqual(output.committedText, "fr\u{00F3}t")
+    }
+
+    // MARK: - B4. Word break resets flag
+
+    func test_wordBreak_resetsNonVietnamese() {
+        var engine = engineWithDetector()
+        // "fr " → detected, then space resets
+        _ = type("fr ", into: &engine)
+        // Now "as" → should apply tone (Vietnamese)
+        let output = type("as", into: &engine)
+        XCTAssertEqual(output.committedText, "\u{00E1}")
+    }
+
+    // MARK: - B5. Backspace re-evaluates
+
+    func test_backspace_reevaluatesNonVietnamese() {
+        var engine = engineWithDetector()
+        _ = type("fr", into: &engine)
+        // nonVietnamese = true, now backspace removes 'r'
+        _ = engine.processKey(key: "\u{08}", shift: false)
+        // buffer = [f], single consonant → nonVietnamese = false
+        let output = type("os", into: &engine)
+        // 'o' is vowel, 's' is tone sắc → fó
+        XCTAssertEqual(output.committedText, "f\u{00F3}")
     }
 }
