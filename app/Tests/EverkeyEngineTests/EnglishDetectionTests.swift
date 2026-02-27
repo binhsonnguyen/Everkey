@@ -135,4 +135,54 @@ final class EnglishDetectionEngineTests: XCTestCase {
         // 'o' is vowel, 's' is tone sắc → fó
         XCTAssertEqual(output.committedText, "f\u{00F3}")
     }
+
+    // MARK: - C. Edge Cases
+
+    func test_Swift_uppercaseSkipsTelex() {
+        var engine = engineWithDetector()
+        let _ = engine.processKey(key: "s", shift: true) // S
+        let _ = engine.processKey(key: "w", shift: false)
+        let _ = engine.processKey(key: "i", shift: false)
+        let _ = engine.processKey(key: "f", shift: false)
+        let output = engine.processKey(key: "t", shift: false)
+        XCTAssertEqual(output.committedText, "Swift")
+    }
+
+    func test_modifier_w_skippedWhenNonVietnamese() {
+        // "sw" detected → 'w' would be modifier for 'o'/'u', but should be literal
+        var engine = engineWithDetector()
+        let output = type("sword", into: &engine)
+        XCTAssertEqual(output.committedText, "sword")
+    }
+
+    func test_modifier_dd_skippedWhenNonVietnamese() {
+        // "bdd" → 'b' single consonant not detected, but "dd" modifier should still work
+        // This is a Vietnamese scenario: "bdd" → the second 'd' toggles stroke on first 'd'
+        // Actually "bd" → invalid cluster! b then d → cluster "bd" not valid
+        var engine = engineWithDetector()
+        let output = type("bdd", into: &engine)
+        // "bd" detected at 2nd char → nonVietnamese, 3rd 'd' literal
+        XCTAssertEqual(output.committedText, "bdd")
+    }
+
+    // MARK: - D. Runtime Toggle
+
+    func test_setDetector_enables_detection() {
+        var engine = Engine() // no detector
+        engine.setDetector(ConsonantClusterDetector())
+        let output = type("frost", into: &engine)
+        XCTAssertEqual(output.committedText, "frost")
+    }
+
+    func test_setDetector_nil_disables_detection() {
+        var engine = engineWithDetector()
+        _ = type("fr", into: &engine)
+        // nonVietnamese = true, now disable detector
+        engine.setDetector(nil)
+        // nonVietnamese cleared, continue typing → Telex applies
+        _ = engine.processKey(key: "o", shift: false)
+        let output = engine.processKey(key: "s", shift: false)
+        // 'o' is vowel, 's' tone sắc → fró
+        XCTAssertEqual(output.committedText, "fr\u{00F3}")
+    }
 }
