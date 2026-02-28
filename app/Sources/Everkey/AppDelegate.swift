@@ -11,7 +11,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var englishDetectionItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let detector = ConsonantClusterDetector()
+        let detector = CompositeDetector([
+            ConsonantClusterDetector(),
+            InvalidCodaDetector(),
+        ])
         keyboardHandler = KeyboardEventHandler(injector: textInjector, detector: detector)
 
         let isEnabled = UserDefaults.standard.object(forKey: Self.englishDetectionKey) as? Bool ?? true
