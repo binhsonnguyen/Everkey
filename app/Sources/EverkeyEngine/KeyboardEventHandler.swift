@@ -1,7 +1,9 @@
 public class KeyboardEventHandler {
     private var engine = Engine()
     private let injector: TextInjecting
+    private let detector: NonVietnameseDetecting?
     public private(set) var isVietnamese = true
+    public private(set) var isEnglishDetectionEnabled: Bool
     public var onToggle: ((Bool) -> Void)?
 
     private let passthroughKeys: Set<Int64> = [
@@ -21,8 +23,13 @@ public class KeyboardEventHandler {
         0x79, // Page Down
     ]
 
-    public init(injector: TextInjecting) {
+    public init(injector: TextInjecting, detector: NonVietnameseDetecting? = nil) {
         self.injector = injector
+        self.detector = detector
+        self.isEnglishDetectionEnabled = detector != nil
+        if let detector = detector {
+            engine.setDetector(detector)
+        }
     }
 
     public func resetEngine() {

@@ -248,6 +248,21 @@ final class KeyboardEventHandlerTests: XCTestCase {
         XCTAssertEqual(injector.lastBackspaceCount, 0)
     }
 
+    // MARK: - English Detection Toggle
+
+    func test_noDetector_englishDetectionIsDisabled() {
+        let handler = KeyboardEventHandler(injector: SpyInjector())
+        XCTAssertFalse(handler.isEnglishDetectionEnabled)
+    }
+
+    func test_withDetector_englishDetectionIsEnabled() {
+        let handler = KeyboardEventHandler(
+            injector: SpyInjector(),
+            detector: ConsonantClusterDetector()
+        )
+        XCTAssertTrue(handler.isEnglishDetectionEnabled)
+    }
+
     // MARK: - Helpers
 
     private func keyDown(_ char: Character, shift: Bool = false) -> KeyEvent {
