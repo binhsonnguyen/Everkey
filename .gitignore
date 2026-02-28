@@ -19,5 +19,8 @@ DerivedData/
 *.swo
 *~
 
+# Build artifacts
+Everkey.app/
+
 # Claude Code
 .claude/
