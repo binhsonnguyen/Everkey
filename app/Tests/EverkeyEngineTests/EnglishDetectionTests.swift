@@ -120,6 +120,34 @@ final class InvalidCodaDetectorTests: XCTestCase {
     }
 }
 
+// MARK: - A3. CompositeDetector Tests
+
+final class CompositeDetectorTests: XCTestCase {
+
+    private let composite = CompositeDetector([
+        ConsonantClusterDetector(),
+        InvalidCodaDetector(),
+    ])
+
+    func test_prefixCluster_triggersComposite() {
+        // "fr" → Method 1 fires
+        let buffer = [VnChar(base: "f"), VnChar(base: "r")]
+        XCTAssertTrue(composite.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_invalidCoda_triggersComposite() {
+        // "al" → Method 2 fires (coda "l" invalid)
+        let buffer = [VnChar(base: "a"), VnChar(base: "l")]
+        XCTAssertTrue(composite.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_validVietnamese_neitherTriggers() {
+        // "ban" → onset "b" valid, coda "n" valid
+        let buffer = "ban".map { VnChar(base: $0) }
+        XCTAssertFalse(composite.isNonVietnamese(buffer: buffer))
+    }
+}
+
 // MARK: - B. Engine Integration Tests
 
 final class EnglishDetectionEngineTests: XCTestCase {

@@ -49,3 +49,18 @@ public struct InvalidCodaDetector: NonVietnameseDetecting {
         return !Self.validCodas.contains(coda)
     }
 }
+
+// MARK: - Composite Detector
+
+public struct CompositeDetector: NonVietnameseDetecting {
+
+    private let detectors: [NonVietnameseDetecting]
+
+    public init(_ detectors: [NonVietnameseDetecting]) {
+        self.detectors = detectors
+    }
+
+    public func isNonVietnamese(buffer: [VnChar]) -> Bool {
+        detectors.contains { $0.isNonVietnamese(buffer: buffer) }
+    }
+}
