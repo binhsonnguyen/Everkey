@@ -2,13 +2,23 @@ import Cocoa
 import EverkeyEngine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    private static let englishDetectionKey = "englishDetectionEnabled"
+
     private var statusItem: NSStatusItem!
     private let eventTapManager = EventTapManager()
     private let textInjector = CGTextInjector()
     private var keyboardHandler: KeyboardEventHandler!
+    private var englishDetectionItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        keyboardHandler = KeyboardEventHandler(injector: textInjector)
+        let detector = ConsonantClusterDetector()
+        keyboardHandler = KeyboardEventHandler(injector: textInjector, detector: detector)
+
+        let isEnabled = UserDefaults.standard.object(forKey: Self.englishDetectionKey) as? Bool ?? true
+        if !isEnabled {
+            keyboardHandler.setEnglishDetection(enabled: false)
+        }
+
         setupStatusBar()
 
         if !checkAccessibilityPermission() {
@@ -34,8 +44,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
+
+        englishDetectionItem = NSMenuItem(
+            title: "Phát hiện tiếng Anh",
+            action: #selector(toggleEnglishDetection),
+            keyEquivalent: ""
+        )
+        englishDetectionItem.target = self
+        englishDetectionItem.state = keyboardHandler.isEnglishDetectionEnabled ? .on : .off
+        menu.addItem(englishDetectionItem)
+
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit Everkey", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         return menu
+    }
+
+    @objc private func toggleEnglishDetection() {
+        let newValue = !keyboardHandler.isEnglishDetectionEnabled
+        keyboardHandler.setEnglishDetection(enabled: newValue)
+        englishDetectionItem.state = newValue ? .on : .off
+        UserDefaults.standard.set(newValue, forKey: Self.englishDetectionKey)
     }
 
     // MARK: - Event Tap
