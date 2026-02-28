@@ -263,6 +263,43 @@ final class KeyboardEventHandlerTests: XCTestCase {
         XCTAssertTrue(handler.isEnglishDetectionEnabled)
     }
 
+    func test_detectionEnabled_frost_skipsTelex() {
+        let spy = SpyInjector()
+        let handler = KeyboardEventHandler(
+            injector: spy,
+            detector: ConsonantClusterDetector()
+        )
+        for c in "frost" { _ = handler.handleEvent(keyDown(c)) }
+        XCTAssertEqual(spy.lastText, "frost")
+    }
+
+    func test_detectionDisabled_frost_appliesTelex() {
+        let spy = SpyInjector()
+        let handler = KeyboardEventHandler(
+            injector: spy,
+            detector: ConsonantClusterDetector()
+        )
+        handler.setEnglishDetection(enabled: false)
+        XCTAssertFalse(handler.isEnglishDetectionEnabled)
+
+        for c in "frost" { _ = handler.handleEvent(keyDown(c)) }
+        XCTAssertEqual(spy.lastText, "fr\u{00F3}t") // fróst → s applies sắc
+    }
+
+    func test_reenableDetection_restoresBehavior() {
+        let spy = SpyInjector()
+        let handler = KeyboardEventHandler(
+            injector: spy,
+            detector: ConsonantClusterDetector()
+        )
+        handler.setEnglishDetection(enabled: false)
+        handler.setEnglishDetection(enabled: true)
+        handler.resetEngine()
+
+        for c in "frost" { _ = handler.handleEvent(keyDown(c)) }
+        XCTAssertEqual(spy.lastText, "frost")
+    }
+
     // MARK: - Helpers
 
     private func keyDown(_ char: Character, shift: Bool = false) -> KeyEvent {

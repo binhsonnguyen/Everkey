@@ -32,6 +32,11 @@ public class KeyboardEventHandler {
         }
     }
 
+    public func setEnglishDetection(enabled: Bool) {
+        isEnglishDetectionEnabled = enabled
+        engine.setDetector(enabled ? detector : nil)
+    }
+
     public func resetEngine() {
         engine.reset()
     }
