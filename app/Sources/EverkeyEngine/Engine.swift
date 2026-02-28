@@ -214,8 +214,18 @@ public struct Engine {
     private mutating func detectNonVietnameseIfNeeded() {
         guard !nonVietnamese else { return }
         guard let detector = detector else { return }
-        guard !buffer.contains(where: { $0.isVowel }) else { return }
-        nonVietnamese = detector.isNonVietnamese(buffer: buffer)
+        if detector.isNonVietnamese(buffer: buffer) {
+            nonVietnamese = true
+            if buffer.contains(where: { $0.isVowel }) {
+                rebuildBufferFromRawKeys()
+            }
+        }
+    }
+
+    private mutating func rebuildBufferFromRawKeys() {
+        buffer = rawKeys.map { char in
+            VnChar(base: Character(char.lowercased()), uppercase: char.isUppercase)
+        }
     }
 
     private mutating func reevaluateNonVietnamese() {

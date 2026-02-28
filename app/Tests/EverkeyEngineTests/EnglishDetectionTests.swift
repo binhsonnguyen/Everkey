@@ -237,6 +237,74 @@ final class EnglishDetectionEngineTests: XCTestCase {
         XCTAssertEqual(output.committedText, "f\u{00F3}")
     }
 
+    // MARK: - B6. Invalid coda detection (Method 2 integration)
+
+    private func compositeEngine() -> Engine {
+        Engine(detector: CompositeDetector([
+            ConsonantClusterDetector(),
+            InvalidCodaDetector(),
+        ]))
+    }
+
+    func test_bold_invalidCoda_skipsTelex() {
+        var engine = compositeEngine()
+        let output = type("bold", into: &engine)
+        XCTAssertEqual(output.committedText, "bold")
+    }
+
+    func test_task_invalidCoda_revertsAppliedTone() {
+        // t-a-s-k: 's' applies sắc on 'a' → "ták", then 'k' invalid coda → revert to "task"
+        var engine = compositeEngine()
+        let output = type("task", into: &engine)
+        XCTAssertEqual(output.committedText, "task")
+    }
+
+    func test_self_invalidCoda_thenLiteralF() {
+        // s-e-l-f: 'l' invalid coda → detect, 'f' (huyền) becomes literal
+        var engine = compositeEngine()
+        let output = type("self", into: &engine)
+        XCTAssertEqual(output.committedText, "self")
+    }
+
+    func test_bank_invalidCompoundCoda() {
+        // b-a-n-k: 'n' valid coda, 'k' makes "nk" invalid → detect
+        var engine = compositeEngine()
+        let output = type("bank", into: &engine)
+        XCTAssertEqual(output.committedText, "bank")
+    }
+
+    func test_bans_validCoda_vietnameseStillWorks() {
+        // b-a-n-s: 'n' valid coda, 's' is tone sắc on 'a' → "bán"
+        var engine = compositeEngine()
+        let output = type("bans", into: &engine)
+        XCTAssertEqual(output.committedText, "b\u{00E1}n")
+    }
+
+    func test_bafng_validCoda_vietnameseStillWorks() {
+        // b-a-f-n-g: 'f' is huyền on 'a' → "bà", then "ng" valid coda → "bàng"
+        var engine = compositeEngine()
+        let output = type("bafng", into: &engine)
+        XCTAssertEqual(output.committedText, "b\u{00E0}ng")
+    }
+
+    func test_ring_validCoda_notDetected() {
+        // r-i-n-g: coda "ng" valid → not detected, output "ring" (no diacritics)
+        var engine = compositeEngine()
+        let output = type("ring", into: &engine)
+        XCTAssertEqual(output.committedText, "ring")
+    }
+
+    func test_backspace_afterCodaDetection_reevaluates() {
+        var engine = compositeEngine()
+        // "bank" → detected (coda "nk")
+        _ = type("bank", into: &engine)
+        // backspace removes 'k' → coda "n" → valid → nonVietnamese = false
+        _ = engine.processKey(key: "\u{08}", shift: false)
+        // now 's' should apply tone sắc on 'a' → "bán"
+        let output = engine.processKey(key: "s", shift: false)
+        XCTAssertEqual(output.committedText, "b\u{00E1}n")
+    }
+
     // MARK: - C. Edge Cases
 
     func test_Swift_uppercaseSkipsTelex() {
