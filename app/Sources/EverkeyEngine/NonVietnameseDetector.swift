@@ -30,3 +30,22 @@ public struct ConsonantClusterDetector: NonVietnameseDetecting {
         return result
     }
 }
+
+// MARK: - Invalid Coda Detector (Method 2)
+
+public struct InvalidCodaDetector: NonVietnameseDetecting {
+
+    public init() {}
+
+    private static let validCodas: Set<String> = [
+        "c", "ch", "m", "n", "ng", "nh", "p", "t",
+    ]
+
+    public func isNonVietnamese(buffer: [VnChar]) -> Bool {
+        guard let lastVowelIndex = buffer.lastIndex(where: { $0.isVowel }) else { return false }
+        let trailing = buffer[(lastVowelIndex + 1)...]
+        guard !trailing.isEmpty else { return false }
+        let coda = String(trailing.map { $0.base })
+        return !Self.validCodas.contains(coda)
+    }
+}

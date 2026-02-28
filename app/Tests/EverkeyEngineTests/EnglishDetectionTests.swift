@@ -47,6 +47,79 @@ final class ConsonantClusterDetectorTests: XCTestCase {
     }
 }
 
+// MARK: - A2. InvalidCodaDetector Tests
+
+final class InvalidCodaDetectorTests: XCTestCase {
+
+    private let detector = InvalidCodaDetector()
+
+    // MARK: - Valid codas → not detected
+
+    func test_validCodas_areVietnamese() {
+        let validCodas = ["c", "ch", "m", "n", "ng", "nh", "p", "t"]
+        for coda in validCodas {
+            let buffer = [VnChar(base: "a")] + coda.map { VnChar(base: $0) }
+            XCTAssertFalse(detector.isNonVietnamese(buffer: buffer),
+                           "coda '\(coda)' should be valid Vietnamese")
+        }
+    }
+
+    func test_noCoda_notDetected() {
+        let buffer = [VnChar(base: "b"), VnChar(base: "a")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    // MARK: - Invalid single codas → detected
+
+    func test_invalidSingleCodas_detected() {
+        let invalidCodas: [Character] = ["b", "d", "g", "h", "k", "l", "r", "s", "v", "x"]
+        for coda in invalidCodas {
+            let buffer = [VnChar(base: "a"), VnChar(base: coda)]
+            XCTAssertTrue(detector.isNonVietnamese(buffer: buffer),
+                          "coda '\(coda)' should be invalid Vietnamese")
+        }
+    }
+
+    // MARK: - Invalid compound codas → detected
+
+    func test_invalidCompoundCodas_detected() {
+        let invalidCodas = ["ld", "rk", "nk", "nd", "lp", "lf", "st", "rb"]
+        for coda in invalidCodas {
+            let buffer = [VnChar(base: "a")] + coda.map { VnChar(base: $0) }
+            XCTAssertTrue(detector.isNonVietnamese(buffer: buffer),
+                          "coda '\(coda)' should be invalid Vietnamese")
+        }
+    }
+
+    // MARK: - Edge cases
+
+    func test_noVowel_notDetected() {
+        let buffer = [VnChar(base: "b"), VnChar(base: "r")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_emptyBuffer_notDetected() {
+        XCTAssertFalse(detector.isNonVietnamese(buffer: []))
+    }
+
+    func test_onlyVowel_notDetected() {
+        let buffer = [VnChar(base: "a")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_onset_plus_validCoda() {
+        // "ban" → onset b, vowel a, coda n → valid
+        let buffer = "ban".map { VnChar(base: $0) }
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_onset_plus_invalidCoda() {
+        // "bal" → onset b, vowel a, coda l → invalid
+        let buffer = "bal".map { VnChar(base: $0) }
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+}
+
 // MARK: - B. Engine Integration Tests
 
 final class EnglishDetectionEngineTests: XCTestCase {
