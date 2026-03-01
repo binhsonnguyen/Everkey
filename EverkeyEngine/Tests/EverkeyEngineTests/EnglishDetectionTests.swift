@@ -127,6 +127,7 @@ final class CompositeDetectorTests: XCTestCase {
     private let composite = CompositeDetector([
         ConsonantClusterDetector(),
         InvalidCodaDetector(),
+        InvalidVowelNucleiDetector(),
     ])
 
     func test_prefixCluster_triggersComposite() {
@@ -142,9 +143,15 @@ final class CompositeDetectorTests: XCTestCase {
     }
 
     func test_validVietnamese_neitherTriggers() {
-        // "ban" → onset "b" valid, coda "n" valid
+        // "ban" → onset "b" valid, coda "n" valid, nucleus "a" single
         let buffer = "ban".map { VnChar(base: $0) }
         XCTAssertFalse(composite.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_invalidNucleus_triggersComposite() {
+        // "tea" → nucleus "ea" invalid, Method 3 fires
+        let buffer = "tea".map { VnChar(base: $0) }
+        XCTAssertTrue(composite.isNonVietnamese(buffer: buffer))
     }
 }
 
@@ -397,6 +404,70 @@ final class EnglishDetectionEngineTests: XCTestCase {
         // now 's' should apply tone sắc on 'a' → "bán"
         let output = engine.processKey(key: "s", shift: false)
         XCTAssertEqual(output.committedText, "b\u{00E1}n")
+    }
+
+    // MARK: - B7. Invalid vowel nuclei detection (Method 3 integration)
+
+    private func fullCompositeEngine() -> Engine {
+        Engine(detector: CompositeDetector([
+            ConsonantClusterDetector(),
+            InvalidCodaDetector(),
+            InvalidVowelNucleiDetector(),
+        ]))
+    }
+
+    func test_team_invalidNucleus_skipsTelex() {
+        var engine = fullCompositeEngine()
+        let output = type("team", into: &engine)
+        XCTAssertEqual(output.committedText, "team")
+    }
+
+    func test_bean_invalidNucleus_skipsTelex() {
+        var engine = fullCompositeEngine()
+        let output = type("bean", into: &engine)
+        XCTAssertEqual(output.committedText, "bean")
+    }
+
+    func test_heap_invalidNucleus_skipsTelex() {
+        var engine = fullCompositeEngine()
+        let output = type("heap", into: &engine)
+        XCTAssertEqual(output.committedText, "heap")
+    }
+
+    func test_lion_invalidNucleus_skipsTelex() {
+        var engine = fullCompositeEngine()
+        let output = type("lion", into: &engine)
+        XCTAssertEqual(output.committedText, "lion")
+    }
+
+    func test_soup_invalidNucleus_skipsTelex() {
+        var engine = fullCompositeEngine()
+        let output = type("soup", into: &engine)
+        XCTAssertEqual(output.committedText, "soup")
+    }
+
+    func test_noun_invalidNucleus_skipsTelex() {
+        var engine = fullCompositeEngine()
+        let output = type("noun", into: &engine)
+        XCTAssertEqual(output.committedText, "noun")
+    }
+
+    func test_reach_invalidNucleus_skipsTelex() {
+        var engine = fullCompositeEngine()
+        let output = type("reach", into: &engine)
+        XCTAssertEqual(output.committedText, "reach")
+    }
+
+    func test_hoafng_validNucleus_vietnameseWorks() {
+        var engine = fullCompositeEngine()
+        let output = type("hoafng", into: &engine)
+        XCTAssertEqual(output.committedText, "ho\u{00E0}ng")
+    }
+
+    func test_quays_validAfterOnsetSkip_vietnameseWorks() {
+        var engine = fullCompositeEngine()
+        let output = type("quays", into: &engine)
+        XCTAssertEqual(output.committedText, "qu\u{00E1}y")
     }
 
     // MARK: - C. Edge Cases
