@@ -111,6 +111,25 @@ public struct InvalidVowelNucleiDetector: NonVietnameseDetecting {
     }
 }
 
+// MARK: - Tone-Coda Restriction Detector (Method 4)
+
+public struct ToneCodaRestrictionDetector: NonVietnameseDetecting {
+
+    public init() {}
+
+    private static let stopCodas: Set<String> = ["c", "ch", "p", "t"]
+    private static let allowedTones: Set<Tone> = [.ngang, .sac, .nang]
+
+    public func isNonVietnamese(buffer: [VnChar]) -> Bool {
+        guard let lastVowelIndex = buffer.lastIndex(where: { $0.isVowel }) else { return false }
+        let trailing = buffer[(lastVowelIndex + 1)...]
+        guard !trailing.isEmpty else { return false }
+        let coda = String(trailing.map { $0.base })
+        guard Self.stopCodas.contains(coda) else { return false }
+        return buffer.contains { $0.isVowel && !Self.allowedTones.contains($0.tone) }
+    }
+}
+
 // MARK: - Composite Detector
 
 public struct CompositeDetector: NonVietnameseDetecting {

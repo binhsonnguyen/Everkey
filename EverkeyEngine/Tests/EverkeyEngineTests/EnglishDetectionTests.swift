@@ -249,6 +249,89 @@ final class InvalidVowelNucleiDetectorTests: XCTestCase {
     }
 }
 
+// MARK: - A5. ToneCodaRestrictionDetector Tests
+
+final class ToneCodaRestrictionDetectorTests: XCTestCase {
+
+    private let detector = ToneCodaRestrictionDetector()
+
+    // MARK: - Stop coda + invalid tone → detected
+
+    func test_huyen_with_stopCoda_c_isNonVietnamese() {
+        // "hàc" → huyền + stop coda c → invalid
+        let buffer = [VnChar(base: "h"), VnChar(base: "a", tone: .huyen), VnChar(base: "c")]
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_hoi_with_stopCoda_p_isNonVietnamese() {
+        // "hảp" → hỏi + stop coda p → invalid
+        let buffer = [VnChar(base: "h"), VnChar(base: "a", tone: .hoi), VnChar(base: "p")]
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_nga_with_stopCoda_t_isNonVietnamese() {
+        // "hãt" → ngã + stop coda t → invalid
+        let buffer = [VnChar(base: "h"), VnChar(base: "a", tone: .nga), VnChar(base: "t")]
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_huyen_with_stopCoda_ch_isNonVietnamese() {
+        // "hàch" → huyền + stop coda ch → invalid
+        let buffer = [VnChar(base: "h"), VnChar(base: "a", tone: .huyen), VnChar(base: "c"), VnChar(base: "h")]
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    // MARK: - Stop coda + valid tone → not detected
+
+    func test_sac_with_stopCoda_c_isVietnamese() {
+        // "bác" → sắc + c → valid
+        let buffer = [VnChar(base: "b"), VnChar(base: "a", tone: .sac), VnChar(base: "c")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_nang_with_stopCoda_p_isVietnamese() {
+        // "hạp" → nặng + p → valid
+        let buffer = [VnChar(base: "h"), VnChar(base: "a", tone: .nang), VnChar(base: "p")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_ngang_with_stopCoda_t_isVietnamese() {
+        // "hat" → ngang + t → valid
+        let buffer = [VnChar(base: "h"), VnChar(base: "a"), VnChar(base: "t")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    // MARK: - Nasal coda + any tone → not detected
+
+    func test_huyen_with_nasalCoda_n_isVietnamese() {
+        // "hàn" → huyền + nasal n → valid
+        let buffer = [VnChar(base: "h"), VnChar(base: "a", tone: .huyen), VnChar(base: "n")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_hoi_with_nasalCoda_ng_isVietnamese() {
+        // "hảng" → hỏi + nasal ng → valid
+        let buffer = [VnChar(base: "h"), VnChar(base: "a", tone: .hoi), VnChar(base: "n"), VnChar(base: "g")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    // MARK: - Edge cases
+
+    func test_emptyBuffer_notDetected() {
+        XCTAssertFalse(detector.isNonVietnamese(buffer: []))
+    }
+
+    func test_noVowel_notDetected() {
+        let buffer = [VnChar(base: "b"), VnChar(base: "r")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_noCoda_notDetected() {
+        let buffer = [VnChar(base: "h"), VnChar(base: "a", tone: .huyen)]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+}
+
 // MARK: - B. Engine Integration Tests
 
 final class EnglishDetectionEngineTests: XCTestCase {
