@@ -496,6 +496,7 @@ final class EnglishDetectionEngineTests: XCTestCase {
             ConsonantClusterDetector(),
             InvalidCodaDetector(),
             InvalidVowelNucleiDetector(),
+            ToneCodaRestrictionDetector(),
         ]))
     }
 
@@ -562,6 +563,42 @@ final class EnglishDetectionEngineTests: XCTestCase {
         // now 's' should apply tone sắc on 'e' → "té"
         let output = engine.processKey(key: "s", shift: false)
         XCTAssertEqual(output.committedText, "t\u{00E9}")
+    }
+
+    // MARK: - B8. Tone-coda restriction detection (Method 4 integration)
+
+    func test_raft_toneThenCoda_skipsTelex() {
+        // r-a-f-t: 'f' huyền on 'a' → "rà", 't' literal → detect (huyền + stop t)
+        var engine = fullCompositeEngine()
+        let output = type("raft", into: &engine)
+        XCTAssertEqual(output.committedText, "raft")
+    }
+
+    func test_daft_toneThenCoda_skipsTelex() {
+        var engine = fullCompositeEngine()
+        let output = type("daft", into: &engine)
+        XCTAssertEqual(output.committedText, "daft")
+    }
+
+    func test_codaThenTone_skipsTelex() {
+        // h-a-c-f: 'c' literal, then 'f' huyền on 'a' → detect (huyền + stop c)
+        var engine = fullCompositeEngine()
+        let output = type("hacf", into: &engine)
+        XCTAssertEqual(output.committedText, "hacf")
+    }
+
+    func test_bacs_sacWithStopCoda_vietnameseWorks() {
+        // b-a-c-s: 'c' stop coda, 's' sắc on 'a' → "bác" (sắc + c = valid)
+        var engine = fullCompositeEngine()
+        let output = type("bacs", into: &engine)
+        XCTAssertEqual(output.committedText, "b\u{00E1}c")
+    }
+
+    func test_hachj_nangWithStopCoda_vietnameseWorks() {
+        // h-a-c-h-j: coda "ch" stop, 'j' nặng on 'a' → "hạch" (nặng + ch = valid)
+        var engine = fullCompositeEngine()
+        let output = type("hachj", into: &engine)
+        XCTAssertEqual(output.committedText, "h\u{1EA1}ch")
     }
 
     // MARK: - C. Edge Cases

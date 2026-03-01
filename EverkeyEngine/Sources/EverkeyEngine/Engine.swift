@@ -36,6 +36,7 @@ public struct Engine {
         case .conditionalTone(let tone):
             rawKeys.append(key)
             handleTone(tone, key: key)
+            detectNonVietnameseIfNeeded()
         case .removeTone:
             rawKeys.append(key)
             handleRemoveTone()
