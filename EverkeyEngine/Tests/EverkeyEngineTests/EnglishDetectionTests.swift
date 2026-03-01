@@ -175,6 +175,71 @@ final class InvalidVowelNucleiDetectorTests: XCTestCase {
         let buffer = "hei".map { VnChar(base: $0) }
         XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
     }
+
+    // MARK: - Valid nuclei → not detected
+
+    func test_singleVowel_notDetected() {
+        let buffer = [VnChar(base: "b"), VnChar(base: "a")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_validDiphthongs_areVietnamese() {
+        let validPairs = [
+            "ai", "ao", "au", "ay", "eo", "eu",
+            "ia", "ie", "iu", "oa", "oe", "oi",
+            "ua", "ue", "ui", "uo", "uu", "uy", "ye",
+        ]
+        for pair in validPairs {
+            let buffer = [VnChar(base: "b")] + pair.map { VnChar(base: $0) }
+            XCTAssertFalse(detector.isNonVietnamese(buffer: buffer),
+                           "nucleus '\(pair)' should be valid Vietnamese")
+        }
+    }
+
+    func test_validTriphthongs_areVietnamese() {
+        let validTriples = [
+            "ieu", "yeu", "oai", "oay", "oeo",
+            "uay", "uoi", "uou", "uya", "uye", "uyu",
+        ]
+        for triple in validTriples {
+            let buffer = [VnChar(base: "b")] + triple.map { VnChar(base: $0) }
+            XCTAssertFalse(detector.isNonVietnamese(buffer: buffer),
+                           "nucleus '\(triple)' should be valid Vietnamese")
+        }
+    }
+
+    // MARK: - Onset vowel handling
+
+    func test_quay_skipsOnsetU_nucleusIsAy_valid() {
+        let buffer = "quay".map { VnChar(base: $0) }
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_giai_skipsOnsetI_nucleusIsAi_valid() {
+        let buffer = "giai".map { VnChar(base: $0) }
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    // MARK: - Edge cases
+
+    func test_emptyBuffer_notDetected() {
+        XCTAssertFalse(detector.isNonVietnamese(buffer: []))
+    }
+
+    func test_noVowels_notDetected() {
+        let buffer = [VnChar(base: "b"), VnChar(base: "r")]
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_nucleusWithCoda_stillChecksNucleus() {
+        let buffer = "team".map { VnChar(base: $0) }
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_hoang_nucleusIsOa_valid() {
+        let buffer = "hoang".map { VnChar(base: $0) }
+        XCTAssertFalse(detector.isNonVietnamese(buffer: buffer))
+    }
 }
 
 // MARK: - B. Engine Integration Tests
