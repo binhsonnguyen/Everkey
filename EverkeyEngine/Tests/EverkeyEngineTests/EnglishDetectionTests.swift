@@ -148,6 +148,35 @@ final class CompositeDetectorTests: XCTestCase {
     }
 }
 
+// MARK: - A4. InvalidVowelNucleiDetector Tests
+
+final class InvalidVowelNucleiDetectorTests: XCTestCase {
+
+    private let detector = InvalidVowelNucleiDetector()
+
+    // MARK: - Invalid nuclei → detected
+
+    func test_ea_isNonVietnamese() {
+        let buffer = "tea".map { VnChar(base: $0) }
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_ou_isNonVietnamese() {
+        let buffer = "sou".map { VnChar(base: $0) }
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_io_isNonVietnamese() {
+        let buffer = "lio".map { VnChar(base: $0) }
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+
+    func test_ei_isNonVietnamese() {
+        let buffer = "hei".map { VnChar(base: $0) }
+        XCTAssertTrue(detector.isNonVietnamese(buffer: buffer))
+    }
+}
+
 // MARK: - B. Engine Integration Tests
 
 final class EnglishDetectionEngineTests: XCTestCase {
