@@ -15,6 +15,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ConsonantClusterDetector(),
             InvalidCodaDetector(),
             InvalidVowelNucleiDetector(),
+            ToneCodaRestrictionDetector(),
         ])
         keyboardHandler = KeyboardEventHandler(injector: textInjector, detector: detector)
 
