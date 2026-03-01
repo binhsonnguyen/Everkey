@@ -470,6 +470,17 @@ final class EnglishDetectionEngineTests: XCTestCase {
         XCTAssertEqual(output.committedText, "qu\u{00E1}y")
     }
 
+    func test_backspace_afterNucleusDetection_reevaluates() {
+        var engine = fullCompositeEngine()
+        // "tea" → nucleus "ea" → detected
+        _ = type("tea", into: &engine)
+        // backspace removes 'a' → nucleus "e" (single) → valid → nonVietnamese = false
+        _ = engine.processKey(key: "\u{08}", shift: false)
+        // now 's' should apply tone sắc on 'e' → "té"
+        let output = engine.processKey(key: "s", shift: false)
+        XCTAssertEqual(output.committedText, "t\u{00E9}")
+    }
+
     // MARK: - C. Edge Cases
 
     func test_Swift_uppercaseSkipsTelex() {

@@ -14,6 +14,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let detector = CompositeDetector([
             ConsonantClusterDetector(),
             InvalidCodaDetector(),
+            InvalidVowelNucleiDetector(),
         ])
         keyboardHandler = KeyboardEventHandler(injector: textInjector, detector: detector)
 
