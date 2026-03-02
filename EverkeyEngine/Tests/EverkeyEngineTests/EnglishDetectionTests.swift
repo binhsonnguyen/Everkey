@@ -340,61 +340,63 @@ final class EnglishDetectionEngineTests: XCTestCase {
         Engine(detector: ConsonantClusterDetector())
     }
 
-    private func type(_ keys: String, into engine: inout Engine) -> EngineOutput {
-        var output = EngineOutput(backspaceCount: 0, committedText: "")
+    private func type(_ keys: String, into engine: inout Engine) -> String {
+        var screen = ""
         for c in keys {
-            output = engine.processKey(key: c, shift: false)
+            let output = engine.processKey(key: c, shift: false)
+            screen.removeLast(min(output.backspaceCount, screen.count))
+            screen += output.committedText
         }
-        return output
+        return screen
     }
 
     // MARK: - B1. English words skip Telex
 
     func test_frost_skipsTelex() {
         var engine = engineWithDetector()
-        let output = type("frost", into: &engine)
-        XCTAssertEqual(output.committedText, "frost")
+        let screen = type("frost", into: &engine)
+        XCTAssertEqual(screen, "frost")
     }
 
     func test_string_skipsTelex() {
         var engine = engineWithDetector()
-        let output = type("string", into: &engine)
-        XCTAssertEqual(output.committedText, "string")
+        let screen = type("string", into: &engine)
+        XCTAssertEqual(screen, "string")
     }
 
     func test_throw_detectedAtThirdConsonant() {
         var engine = engineWithDetector()
-        let output = type("throw", into: &engine)
-        XCTAssertEqual(output.committedText, "throw")
+        let screen = type("throw", into: &engine)
+        XCTAssertEqual(screen, "throw")
     }
 
     func test_chrome_detectedAtThirdConsonant() {
         var engine = engineWithDetector()
-        let output = type("chrome", into: &engine)
-        XCTAssertEqual(output.committedText, "chrome")
+        let screen = type("chrome", into: &engine)
+        XCTAssertEqual(screen, "chrome")
     }
 
     // MARK: - B2. Vietnamese words still work
 
     func test_thans_producesThán() {
         var engine = engineWithDetector()
-        let output = type("thans", into: &engine)
-        XCTAssertEqual(output.committedText, "th\u{00E1}n")
+        let screen = type("thans", into: &engine)
+        XCTAssertEqual(screen, "th\u{00E1}n")
     }
 
     func test_nghis_producesNghí() {
         var engine = engineWithDetector()
-        let output = type("nghis", into: &engine)
-        XCTAssertEqual(output.committedText, "ngh\u{00ED}")
+        let screen = type("nghis", into: &engine)
+        XCTAssertEqual(screen, "ngh\u{00ED}")
     }
 
     // MARK: - B3. Backward compatibility
 
     func test_withoutDetector_frost_stillAppliesTelex() {
         var engine = Engine()
-        let output = type("frost", into: &engine)
+        let screen = type("frost", into: &engine)
         // Without detector: 's' consumed as tone sắc on 'o' → frót
-        XCTAssertEqual(output.committedText, "fr\u{00F3}t")
+        XCTAssertEqual(screen, "fr\u{00F3}t")
     }
 
     // MARK: - B4. Word break resets flag
@@ -404,21 +406,18 @@ final class EnglishDetectionEngineTests: XCTestCase {
         // "fr " → detected, then space resets
         _ = type("fr ", into: &engine)
         // Now "as" → should apply tone (Vietnamese)
-        let output = type("as", into: &engine)
-        XCTAssertEqual(output.committedText, "\u{00E1}")
+        let screen = type("as", into: &engine)
+        XCTAssertEqual(screen, "\u{00E1}")
     }
 
     // MARK: - B5. Backspace re-evaluates
 
     func test_backspace_reevaluatesNonVietnamese() {
         var engine = engineWithDetector()
-        _ = type("fr", into: &engine)
-        // nonVietnamese = true, now backspace removes 'r'
-        _ = engine.processKey(key: "\u{08}", shift: false)
-        // buffer = [f], single consonant → nonVietnamese = false
-        let output = type("os", into: &engine)
-        // 'o' is vowel, 's' is tone sắc → fó
-        XCTAssertEqual(output.committedText, "f\u{00F3}")
+        // "fr" → detected, BS removes 'r' → "f" valid → nonVietnamese=false
+        // 'o' vowel, 's' tone sắc → "fó"
+        let screen = type("fr\u{08}os", into: &engine)
+        XCTAssertEqual(screen, "f\u{00F3}")
     }
 
     // MARK: - B6. Invalid coda detection (Method 2 integration)
@@ -432,61 +431,58 @@ final class EnglishDetectionEngineTests: XCTestCase {
 
     func test_bold_invalidCoda_skipsTelex() {
         var engine = compositeEngine()
-        let output = type("bold", into: &engine)
-        XCTAssertEqual(output.committedText, "bold")
+        let screen = type("bold", into: &engine)
+        XCTAssertEqual(screen, "bold")
     }
 
     func test_task_invalidCoda_revertsAppliedTone() {
         // t-a-s-k: 's' applies sắc on 'a' → "ták", then 'k' invalid coda → revert to "task"
         var engine = compositeEngine()
-        let output = type("task", into: &engine)
-        XCTAssertEqual(output.committedText, "task")
+        let screen = type("task", into: &engine)
+        XCTAssertEqual(screen, "task")
     }
 
     func test_self_invalidCoda_thenLiteralF() {
         // s-e-l-f: 'l' invalid coda → detect, 'f' (huyền) becomes literal
         var engine = compositeEngine()
-        let output = type("self", into: &engine)
-        XCTAssertEqual(output.committedText, "self")
+        let screen = type("self", into: &engine)
+        XCTAssertEqual(screen, "self")
     }
 
     func test_bank_invalidCompoundCoda() {
         // b-a-n-k: 'n' valid coda, 'k' makes "nk" invalid → detect
         var engine = compositeEngine()
-        let output = type("bank", into: &engine)
-        XCTAssertEqual(output.committedText, "bank")
+        let screen = type("bank", into: &engine)
+        XCTAssertEqual(screen, "bank")
     }
 
     func test_bans_validCoda_vietnameseStillWorks() {
         // b-a-n-s: 'n' valid coda, 's' is tone sắc on 'a' → "bán"
         var engine = compositeEngine()
-        let output = type("bans", into: &engine)
-        XCTAssertEqual(output.committedText, "b\u{00E1}n")
+        let screen = type("bans", into: &engine)
+        XCTAssertEqual(screen, "b\u{00E1}n")
     }
 
     func test_bafng_validCoda_vietnameseStillWorks() {
         // b-a-f-n-g: 'f' is huyền on 'a' → "bà", then "ng" valid coda → "bàng"
         var engine = compositeEngine()
-        let output = type("bafng", into: &engine)
-        XCTAssertEqual(output.committedText, "b\u{00E0}ng")
+        let screen = type("bafng", into: &engine)
+        XCTAssertEqual(screen, "b\u{00E0}ng")
     }
 
     func test_ring_validCoda_notDetected() {
         // r-i-n-g: coda "ng" valid → not detected, output "ring" (no diacritics)
         var engine = compositeEngine()
-        let output = type("ring", into: &engine)
-        XCTAssertEqual(output.committedText, "ring")
+        let screen = type("ring", into: &engine)
+        XCTAssertEqual(screen, "ring")
     }
 
     func test_backspace_afterCodaDetection_reevaluates() {
         var engine = compositeEngine()
-        // "bank" → detected (coda "nk")
-        _ = type("bank", into: &engine)
-        // backspace removes 'k' → coda "n" → valid → nonVietnamese = false
-        _ = engine.processKey(key: "\u{08}", shift: false)
-        // now 's' should apply tone sắc on 'a' → "bán"
-        let output = engine.processKey(key: "s", shift: false)
-        XCTAssertEqual(output.committedText, "b\u{00E1}n")
+        // "bank" → detected, BS removes 'k' → "ban" valid → nonVietnamese=false
+        // 's' applies tone sắc on 'a' → "bán"
+        let screen = type("bank\u{08}s", into: &engine)
+        XCTAssertEqual(screen, "b\u{00E1}n")
     }
 
     // MARK: - B7. Invalid vowel nuclei detection (Method 3 integration)
@@ -502,67 +498,64 @@ final class EnglishDetectionEngineTests: XCTestCase {
 
     func test_team_invalidNucleus_skipsTelex() {
         var engine = fullCompositeEngine()
-        let output = type("team", into: &engine)
-        XCTAssertEqual(output.committedText, "team")
+        let screen = type("team", into: &engine)
+        XCTAssertEqual(screen, "team")
     }
 
     func test_bean_invalidNucleus_skipsTelex() {
         var engine = fullCompositeEngine()
-        let output = type("bean", into: &engine)
-        XCTAssertEqual(output.committedText, "bean")
+        let screen = type("bean", into: &engine)
+        XCTAssertEqual(screen, "bean")
     }
 
     func test_heap_invalidNucleus_skipsTelex() {
         var engine = fullCompositeEngine()
-        let output = type("heap", into: &engine)
-        XCTAssertEqual(output.committedText, "heap")
+        let screen = type("heap", into: &engine)
+        XCTAssertEqual(screen, "heap")
     }
 
     func test_lion_invalidNucleus_skipsTelex() {
         var engine = fullCompositeEngine()
-        let output = type("lion", into: &engine)
-        XCTAssertEqual(output.committedText, "lion")
+        let screen = type("lion", into: &engine)
+        XCTAssertEqual(screen, "lion")
     }
 
     func test_soup_invalidNucleus_skipsTelex() {
         var engine = fullCompositeEngine()
-        let output = type("soup", into: &engine)
-        XCTAssertEqual(output.committedText, "soup")
+        let screen = type("soup", into: &engine)
+        XCTAssertEqual(screen, "soup")
     }
 
     func test_noun_invalidNucleus_skipsTelex() {
         var engine = fullCompositeEngine()
-        let output = type("noun", into: &engine)
-        XCTAssertEqual(output.committedText, "noun")
+        let screen = type("noun", into: &engine)
+        XCTAssertEqual(screen, "noun")
     }
 
     func test_reach_invalidNucleus_skipsTelex() {
         var engine = fullCompositeEngine()
-        let output = type("reach", into: &engine)
-        XCTAssertEqual(output.committedText, "reach")
+        let screen = type("reach", into: &engine)
+        XCTAssertEqual(screen, "reach")
     }
 
     func test_hoafng_validNucleus_vietnameseWorks() {
         var engine = fullCompositeEngine()
-        let output = type("hoafng", into: &engine)
-        XCTAssertEqual(output.committedText, "ho\u{00E0}ng")
+        let screen = type("hoafng", into: &engine)
+        XCTAssertEqual(screen, "ho\u{00E0}ng")
     }
 
     func test_quays_validAfterOnsetSkip_vietnameseWorks() {
         var engine = fullCompositeEngine()
-        let output = type("quays", into: &engine)
-        XCTAssertEqual(output.committedText, "qu\u{00E1}y")
+        let screen = type("quays", into: &engine)
+        XCTAssertEqual(screen, "qu\u{00E1}y")
     }
 
     func test_backspace_afterNucleusDetection_reevaluates() {
         var engine = fullCompositeEngine()
-        // "tea" → nucleus "ea" → detected
-        _ = type("tea", into: &engine)
-        // backspace removes 'a' → nucleus "e" (single) → valid → nonVietnamese = false
-        _ = engine.processKey(key: "\u{08}", shift: false)
-        // now 's' should apply tone sắc on 'e' → "té"
-        let output = engine.processKey(key: "s", shift: false)
-        XCTAssertEqual(output.committedText, "t\u{00E9}")
+        // "tea" → detected, BS → "te" valid → nonVietnamese=false
+        // 's' applies tone sắc on 'e' → "té"
+        let screen = type("tea\u{08}s", into: &engine)
+        XCTAssertEqual(screen, "t\u{00E9}")
     }
 
     // MARK: - B8. Tone-coda restriction detection (Method 4 integration)
@@ -570,54 +563,55 @@ final class EnglishDetectionEngineTests: XCTestCase {
     func test_raft_toneThenCoda_skipsTelex() {
         // r-a-f-t: 'f' huyền on 'a' → "rà", 't' literal → detect (huyền + stop t)
         var engine = fullCompositeEngine()
-        let output = type("raft", into: &engine)
-        XCTAssertEqual(output.committedText, "raft")
+        let screen = type("raft", into: &engine)
+        XCTAssertEqual(screen, "raft")
     }
 
     func test_daft_toneThenCoda_skipsTelex() {
         var engine = fullCompositeEngine()
-        let output = type("daft", into: &engine)
-        XCTAssertEqual(output.committedText, "daft")
+        let screen = type("daft", into: &engine)
+        XCTAssertEqual(screen, "daft")
     }
 
     func test_codaThenTone_skipsTelex() {
         // h-a-c-f: 'c' literal, then 'f' huyền on 'a' → detect (huyền + stop c)
         var engine = fullCompositeEngine()
-        let output = type("hacf", into: &engine)
-        XCTAssertEqual(output.committedText, "hacf")
+        let screen = type("hacf", into: &engine)
+        XCTAssertEqual(screen, "hacf")
     }
 
     func test_bacs_sacWithStopCoda_vietnameseWorks() {
         // b-a-c-s: 'c' stop coda, 's' sắc on 'a' → "bác" (sắc + c = valid)
         var engine = fullCompositeEngine()
-        let output = type("bacs", into: &engine)
-        XCTAssertEqual(output.committedText, "b\u{00E1}c")
+        let screen = type("bacs", into: &engine)
+        XCTAssertEqual(screen, "b\u{00E1}c")
     }
 
     func test_hachj_nangWithStopCoda_vietnameseWorks() {
         // h-a-c-h-j: coda "ch" stop, 'j' nặng on 'a' → "hạch" (nặng + ch = valid)
         var engine = fullCompositeEngine()
-        let output = type("hachj", into: &engine)
-        XCTAssertEqual(output.committedText, "h\u{1EA1}ch")
+        let screen = type("hachj", into: &engine)
+        XCTAssertEqual(screen, "h\u{1EA1}ch")
     }
 
     // MARK: - C. Edge Cases
 
     func test_Swift_uppercaseSkipsTelex() {
         var engine = engineWithDetector()
-        let _ = engine.processKey(key: "s", shift: true) // S
-        let _ = engine.processKey(key: "w", shift: false)
-        let _ = engine.processKey(key: "i", shift: false)
-        let _ = engine.processKey(key: "f", shift: false)
-        let output = engine.processKey(key: "t", shift: false)
-        XCTAssertEqual(output.committedText, "Swift")
+        var screen = ""
+        for (i, c) in "Swift".enumerated() {
+            let output = engine.processKey(key: c, shift: i == 0)
+            screen.removeLast(min(output.backspaceCount, screen.count))
+            screen += output.committedText
+        }
+        XCTAssertEqual(screen, "Swift")
     }
 
     func test_modifier_w_skippedWhenNonVietnamese() {
         // "sw" detected → 'w' would be modifier for 'o'/'u', but should be literal
         var engine = engineWithDetector()
-        let output = type("sword", into: &engine)
-        XCTAssertEqual(output.committedText, "sword")
+        let screen = type("sword", into: &engine)
+        XCTAssertEqual(screen, "sword")
     }
 
     func test_modifier_dd_skippedWhenNonVietnamese() {
@@ -625,9 +619,9 @@ final class EnglishDetectionEngineTests: XCTestCase {
         // This is a Vietnamese scenario: "bdd" → the second 'd' toggles stroke on first 'd'
         // Actually "bd" → invalid cluster! b then d → cluster "bd" not valid
         var engine = engineWithDetector()
-        let output = type("bdd", into: &engine)
+        let screen = type("bdd", into: &engine)
         // "bd" detected at 2nd char → nonVietnamese, 3rd 'd' literal
-        XCTAssertEqual(output.committedText, "bdd")
+        XCTAssertEqual(screen, "bdd")
     }
 
     // MARK: - D. Runtime Toggle
@@ -635,8 +629,8 @@ final class EnglishDetectionEngineTests: XCTestCase {
     func test_setDetector_enables_detection() {
         var engine = Engine() // no detector
         engine.setDetector(ConsonantClusterDetector())
-        let output = type("frost", into: &engine)
-        XCTAssertEqual(output.committedText, "frost")
+        let screen = type("frost", into: &engine)
+        XCTAssertEqual(screen, "frost")
     }
 
     func test_setDetector_nil_disables_detection() {
@@ -647,7 +641,7 @@ final class EnglishDetectionEngineTests: XCTestCase {
         // nonVietnamese cleared, continue typing → Telex applies
         _ = engine.processKey(key: "o", shift: false)
         let output = engine.processKey(key: "s", shift: false)
-        // 'o' is vowel, 's' tone sắc → fró
-        XCTAssertEqual(output.committedText, "fr\u{00F3}")
+        // 's' applies tone sắc on 'o' → confirms Telex is active again
+        XCTAssertEqual(output.committedText, "\u{00F3}")
     }
 }

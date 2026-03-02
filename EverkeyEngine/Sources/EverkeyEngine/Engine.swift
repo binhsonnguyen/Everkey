@@ -14,7 +14,7 @@ public struct Engine {
             return EngineOutput(backspaceCount: 0, committedText: String(key))
         }
 
-        let previousLength = buffer.count
+        let previousText = UnicodeMap.resolveBuffer(buffer)
         var action = KeyAction.classify(key: key, buffer: buffer)
 
         if nonVietnamese {
@@ -49,8 +49,12 @@ public struct Engine {
             reevaluateNonVietnamese()
         }
 
-        let committedText = UnicodeMap.resolveBuffer(buffer)
-        return EngineOutput(backspaceCount: previousLength, committedText: committedText)
+        let newText = UnicodeMap.resolveBuffer(buffer)
+        let shared = sharedPrefixLength(previousText, newText)
+        return EngineOutput(
+            backspaceCount: previousText.count - shared,
+            committedText: String(newText.dropFirst(shared))
+        )
     }
 
     public mutating func setActive(_ active: Bool) {
@@ -238,5 +242,14 @@ public struct Engine {
         if !buffer.isEmpty {
             buffer.removeLast()
         }
+    }
+
+    private func sharedPrefixLength(_ a: String, _ b: String) -> Int {
+        var count = 0
+        for (x, y) in zip(a, b) {
+            guard x == y else { break }
+            count += 1
+        }
+        return count
     }
 }

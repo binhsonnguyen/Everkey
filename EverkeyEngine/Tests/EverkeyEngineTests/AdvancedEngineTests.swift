@@ -299,7 +299,8 @@ final class AdvancedEngineTests: XCTestCase {
         typeInto(&engine, keys: "vi")
         _ = engine.processKey(key: "\u{08}", shift: false)
         let output = engine.processKey(key: "a", shift: false)
-        XCTAssertEqual(output.committedText, "va")
+        // Incremental output: prev="v", new="va", common prefix="v", delta="a"
+        XCTAssertEqual(output.committedText, "a")
     }
 
     func test_B6_backspace_after_modifier() {
@@ -316,7 +317,8 @@ final class AdvancedEngineTests: XCTestCase {
         _ = engine.processKey(key: "\u{08}", shift: false) // remove e
         _ = engine.processKey(key: "\u{08}", shift: false) // remove i
         let output = engine.processKey(key: "a", shift: false)
-        XCTAssertEqual(output.committedText, "va")
+        // Incremental output: prev="v", new="va", common prefix="v", delta="a"
+        XCTAssertEqual(output.committedText, "a")
     }
 
     func test_B6_backspace_on_empty_buffer() {
@@ -362,9 +364,9 @@ final class AdvancedEngineTests: XCTestCase {
         var engine = Engine()
         typeInto(&engine, keys: "as") // á
         _ = engine.revert() // → "as", buffer reset
-        let output = typeInto(&engine, keys: "bf")
+        let result = screenText(&engine, keys: "bf")
         // After revert, buffer is clean. "bf" → b is literal, f has no vowel → literal
-        XCTAssertEqual(output.committedText, "bf")
+        XCTAssertEqual(result, "bf")
     }
 
     func test_B7_revert_modifier_word() {
@@ -434,16 +436,16 @@ final class AdvancedEngineTests: XCTestCase {
         var engine = Engine()
         typeInto(&engine, keys: "chaof") // chào
         _ = engine.processKey(key: " ", shift: false)
-        let output = typeInto(&engine, keys: "hello")
-        XCTAssertEqual(output.committedText, "hello")
+        let result = screenText(&engine, keys: "hello")
+        XCTAssertEqual(result, "hello")
     }
 
     func test_C2_english_then_vietnamese() {
         var engine = Engine()
         typeInto(&engine, keys: "hello")
         _ = engine.processKey(key: " ", shift: false)
-        let output = typeInto(&engine, keys: "chaof")
-        XCTAssertEqual(output.committedText, "ch\u{00E0}o") // chào
+        let result = screenText(&engine, keys: "chaof")
+        XCTAssertEqual(result, "ch\u{00E0}o") // chào
     }
 
     func test_C2_vietnamese_number_vietnamese() {
@@ -460,8 +462,8 @@ final class AdvancedEngineTests: XCTestCase {
         typeInto(&engine, keys: "chaof") // chào
         _ = engine.processKey(key: ",", shift: false)
         _ = engine.processKey(key: " ", shift: false)
-        let output = typeInto(&engine, keys: "banj")
-        XCTAssertEqual(output.committedText, "b\u{1EA1}n") // bạn
+        let result = screenText(&engine, keys: "banj")
+        XCTAssertEqual(result, "b\u{1EA1}n") // bạn
     }
 
     func test_C2_no_state_leak_after_modifier() {
@@ -536,8 +538,8 @@ final class AdvancedEngineTests: XCTestCase {
         var engine = Engine()
         typeInto(&engine, keys: "tois") // tói or similar
         _ = engine.revert() // back to "tois", buffer reset
-        let output = typeInto(&engine, keys: "laf")
-        XCTAssertEqual(output.committedText, "l\u{00E0}") // là
+        let result = screenText(&engine, keys: "laf")
+        XCTAssertEqual(result, "l\u{00E0}") // là
     }
 
     func test_C4_revert_then_word_break_then_type() {
@@ -658,8 +660,8 @@ final class AdvancedEngineTests: XCTestCase {
         _ = engine.processKey(key: " ", shift: false)
 
         // "cos" → có
-        let output = typeInto(&engine, keys: "cos")
-        XCTAssertEqual(output.committedText, "c\u{00F3}") // có
+        let result = screenText(&engine, keys: "cos")
+        XCTAssertEqual(result, "c\u{00F3}") // có
     }
 
     func test_D3_email_address() {
@@ -679,8 +681,8 @@ final class AdvancedEngineTests: XCTestCase {
         _ = engine.processKey(key: ".", shift: false)
 
         // "com"
-        let output = typeInto(&engine, keys: "com")
-        XCTAssertEqual(output.committedText, "com")
+        let result = screenText(&engine, keys: "com")
+        XCTAssertEqual(result, "com")
     }
 
     func test_D3_phone_number_between_words() {
@@ -697,8 +699,8 @@ final class AdvancedEngineTests: XCTestCase {
         _ = engine.processKey(key: " ", shift: false)
 
         // "nhes" → nhé
-        let output = typeInto(&engine, keys: "nhes")
-        XCTAssertEqual(output.committedText, "nh\u{00E9}") // nhé
+        let result = screenText(&engine, keys: "nhes")
+        XCTAssertEqual(result, "nh\u{00E9}") // nhé
     }
 
     // MARK: D4. Typo correction
@@ -708,11 +710,9 @@ final class AdvancedEngineTests: XCTestCase {
         // After BS: buffer = [v]. Then "eejt" → "vệt" (not "việt").
         // This shows: to undo a tone, use toggle (type same key again), not backspace.
         var engine = Engine()
-        typeInto(&engine, keys: "vi")
-        _ = engine.processKey(key: "r", shift: false) // hỏi on i → [v, ỉ]
-        _ = engine.processKey(key: "\u{08}", shift: false) // removes ỉ → [v]
-        let output = typeInto(&engine, keys: "eejt")
-        XCTAssertEqual(output.committedText, "v\u{1EC7}t") // vệt (not việt!)
+        // Use screenText for the full sequence to verify the accumulated result
+        let result = screenText(&engine, keys: "vir\u{08}eejt")
+        XCTAssertEqual(result, "v\u{1EC7}t") // vệt (not việt!)
     }
 
     func test_D4_toggle_to_undo_wrong_tone() {
@@ -762,8 +762,8 @@ final class AdvancedEngineTests: XCTestCase {
 
         // After revert, buffer is empty.
         // "laaf": l, a, â(circumflex), ầ(huyền) = "lầ"
-        let output = typeInto(&engine, keys: "laaf")
-        XCTAssertEqual(output.committedText, "l\u{1EA7}") // lầ
+        let result = screenText(&engine, keys: "laaf")
+        XCTAssertEqual(result, "l\u{1EA7}") // lầ
     }
 
     // MARK: D5. Uppercase patterns

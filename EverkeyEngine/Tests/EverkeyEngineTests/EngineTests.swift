@@ -13,7 +13,8 @@ final class EngineTests: XCTestCase {
         var engine = Engine()
         _ = engine.processKey(key: "a", shift: false)
         let output = engine.processKey(key: "b", shift: false)
-        XCTAssertEqual(output, EngineOutput(backspaceCount: 1, committedText: "ab"))
+        // Incremental: "a"→"ab", common prefix "a", bs:0, text:"b"
+        XCTAssertEqual(output, EngineOutput(backspaceCount: 0, committedText: "b"))
     }
 
     func test_uppercase_literal() {
@@ -131,7 +132,8 @@ final class EngineTests: XCTestCase {
             _ = engine.processKey(key: Character(c), shift: false)
         }
         let output = engine.processKey(key: "j", shift: false)
-        XCTAssertEqual(output.committedText, "vi\u{1EC7}") // viê + nang = việ
+        // Incremental: "viê"→"việ", common prefix "vi", bs:1, text:"ệ"
+        XCTAssertEqual(output.committedText, "\u{1EC7}") // ệ
     }
 
     func test_remove_tone_with_z() {
@@ -154,32 +156,19 @@ final class EngineTests: XCTestCase {
         var engine = Engine()
         _ = engine.processKey(key: "t", shift: false)
         let output = engine.processKey(key: "s", shift: false)
-        XCTAssertEqual(output.committedText, "ts")
+        // Incremental: "t"→"ts", common prefix "t", only "s" appended
+        XCTAssertEqual(output.committedText, "s")
     }
 
     // MARK: - End-to-end
 
     func test_Vieejt_produces_Viet() {
-        var engine = Engine()
-        var output = EngineOutput(backspaceCount: 0, committedText: "")
-        for (c, shift) in [("V", true), ("i", false), ("e", false), ("e", false), ("j", false), ("t", false)] {
-            output = engine.processKey(key: Character(c), shift: shift)
-        }
-        XCTAssertEqual(output.committedText, "Vi\u{1EC7}t") // Việt
+        XCTAssertEqual(typeWord("vieejt"), "Vi\u{1EC7}t") // Việt
     }
 
     func test_xin_chaof_resets_at_space() {
-        var engine = Engine()
-        for c in "xin" {
-            _ = engine.processKey(key: c, shift: false)
-        }
-        _ = engine.processKey(key: " ", shift: false)
-        // After space, buffer resets. Now type "chaof"
-        for c in "chao" {
-            _ = engine.processKey(key: c, shift: false)
-        }
-        let output = engine.processKey(key: "f", shift: false)
-        XCTAssertEqual(output.committedText, "ch\u{00E0}o") // chào
+        // Space is wordBreak → resets engine, then "chaof" → "chào"
+        XCTAssertEqual(typeWord("xin chaof", uppercase: false), "xin ch\u{00E0}o")
     }
 
     func test_backspace_pops_buffer() {
@@ -188,16 +177,12 @@ final class EngineTests: XCTestCase {
             _ = engine.processKey(key: c, shift: false)
         }
         let output = engine.processKey(key: "\u{08}", shift: false) // backspace
-        XCTAssertEqual(output.committedText, "v")
+        // Incremental: "vi"→"v", common prefix "v", bs:1, text:""
+        XCTAssertEqual(output, EngineOutput(backspaceCount: 1, committedText: ""))
     }
 
     func test_ddeef_produces_dề() {
-        var engine = Engine()
-        var output = EngineOutput(backspaceCount: 0, committedText: "")
-        for c in "ddeef" {
-            output = engine.processKey(key: Character(String(c)), shift: false)
-        }
-        XCTAssertEqual(output.committedText, "\u{0111}\u{1EC1}") // đề
+        XCTAssertEqual(typeWord("ddeef", uppercase: false), "\u{0111}\u{1EC1}") // đề
     }
 
     // MARK: - Flexible typing order
@@ -334,11 +319,13 @@ final class EngineTests: XCTestCase {
 
     private func typeWord(_ keys: String, uppercase firstChar: Bool = true) -> String {
         var engine = Engine()
-        var output = EngineOutput(backspaceCount: 0, committedText: "")
+        var screen = ""
         for (i, c) in keys.enumerated() {
             let shift = (i == 0) && firstChar && c.isLetter
-            output = engine.processKey(key: c, shift: shift)
+            let output = engine.processKey(key: c, shift: shift)
+            screen.removeLast(min(output.backspaceCount, screen.count))
+            screen += output.committedText
         }
-        return output.committedText
+        return screen
     }
 }

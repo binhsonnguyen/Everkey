@@ -7,11 +7,15 @@ class SpyInjector: TextInjecting {
     var lastBackspaceCount: Int?
     var lastText: String?
     var callCount = 0
+    private(set) var screenContent = ""
 
     func inject(backspaceCount: Int, text: String) {
         lastBackspaceCount = backspaceCount
         lastText = text
         callCount += 1
+        let deleteCount = min(backspaceCount, screenContent.count)
+        screenContent.removeLast(deleteCount)
+        screenContent += text
     }
 }
 
@@ -166,7 +170,7 @@ final class KeyboardEventHandlerTests: XCTestCase {
         _ = handler.handleEvent(keyDown("j"))  // nặng
         _ = handler.handleEvent(keyDown("t"))
 
-        XCTAssertEqual(injector.lastText, "Việt")
+        XCTAssertEqual(injector.screenContent, "Việt")
     }
 
     // MARK: - Shift / CapsLock
@@ -270,7 +274,7 @@ final class KeyboardEventHandlerTests: XCTestCase {
             detector: ConsonantClusterDetector()
         )
         for c in "frost" { _ = handler.handleEvent(keyDown(c)) }
-        XCTAssertEqual(spy.lastText, "frost")
+        XCTAssertEqual(spy.screenContent, "frost")
     }
 
     func test_detectionDisabled_frost_appliesTelex() {
@@ -283,7 +287,7 @@ final class KeyboardEventHandlerTests: XCTestCase {
         XCTAssertFalse(handler.isEnglishDetectionEnabled)
 
         for c in "frost" { _ = handler.handleEvent(keyDown(c)) }
-        XCTAssertEqual(spy.lastText, "fr\u{00F3}t") // fróst → s applies sắc
+        XCTAssertEqual(spy.screenContent, "fr\u{00F3}t") // fróst → s applies sắc
     }
 
     func test_reenableDetection_restoresBehavior() {
@@ -297,7 +301,7 @@ final class KeyboardEventHandlerTests: XCTestCase {
         handler.resetEngine()
 
         for c in "frost" { _ = handler.handleEvent(keyDown(c)) }
-        XCTAssertEqual(spy.lastText, "frost")
+        XCTAssertEqual(spy.screenContent, "frost")
     }
 
     // MARK: - Helpers
