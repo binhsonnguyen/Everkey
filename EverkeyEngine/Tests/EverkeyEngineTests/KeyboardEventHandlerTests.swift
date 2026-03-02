@@ -17,6 +17,10 @@ class SpyInjector: TextInjecting {
         screenContent.removeLast(deleteCount)
         screenContent += text
     }
+
+    func passThrough(_ char: Character) {
+        screenContent += String(char)
+    }
 }
 
 // MARK: - Tests
@@ -59,13 +63,13 @@ final class KeyboardEventHandlerTests: XCTestCase {
         // Toggle off
         _ = handler.handleEvent(ctrlSpace())
 
-        // Inactive: "a" + "s" → literal "a" then literal "s" (no tone)
+        // Inactive: "a" + "s" → literal pass-through, no injection
         injector.callCount = 0
-        _ = handler.handleEvent(keyDown("a"))
-        _ = handler.handleEvent(keyDown("s"))
+        type("a")
+        type("s")
 
-        XCTAssertEqual(injector.lastText, "s")
-        XCTAssertEqual(injector.lastBackspaceCount, 0)
+        XCTAssertEqual(injector.callCount, 0)
+        XCTAssertEqual(injector.screenContent, "as")
     }
 
     // MARK: - Pass-through Cases
@@ -78,33 +82,31 @@ final class KeyboardEventHandlerTests: XCTestCase {
     }
 
     func test_arrowKey_resetsEngine_passesThrough() {
-        _ = handler.handleEvent(keyDown("v"))
-        _ = handler.handleEvent(keyDown("i"))
+        type("v")
+        type("i")
 
         // Left arrow (0x7B)
         let suppress = handler.handleEvent(KeyEvent(type: .keyDown, keyCode: 0x7B))
         XCTAssertFalse(suppress)
 
-        // Engine reset — "s" starts a fresh word, not tone on "i"
+        // Engine reset — "s" passes through as literal (no tone on "i")
         injector.callCount = 0
-        _ = handler.handleEvent(keyDown("s"))
-        XCTAssertEqual(injector.lastText, "s")
-        XCTAssertEqual(injector.lastBackspaceCount, 0)
+        type("s")
+        XCTAssertEqual(injector.callCount, 0)
     }
 
     func test_commandCombo_resetsEngine_passesThrough() {
-        _ = handler.handleEvent(keyDown("v"))
-        _ = handler.handleEvent(keyDown("i"))
+        type("v")
+        type("i")
 
         let event = KeyEvent(type: .keyDown, keyCode: 0x08, flags: .command, character: "c")
         let suppress = handler.handleEvent(event)
         XCTAssertFalse(suppress)
 
-        // Engine reset — "s" starts fresh
+        // Engine reset — "s" passes through as literal
         injector.callCount = 0
-        _ = handler.handleEvent(keyDown("s"))
-        XCTAssertEqual(injector.lastText, "s")
-        XCTAssertEqual(injector.lastBackspaceCount, 0)
+        type("s")
+        XCTAssertEqual(injector.callCount, 0)
     }
 
     func test_altCombo_resetsEngine_passesThrough() {
@@ -123,17 +125,16 @@ final class KeyboardEventHandlerTests: XCTestCase {
     // MARK: - Event Routing
 
     func test_mouseDown_resetsEngine_passesThrough() {
-        _ = handler.handleEvent(keyDown("v"))
-        _ = handler.handleEvent(keyDown("i"))
+        type("v")
+        type("i")
 
         let suppress = handler.handleEvent(KeyEvent(type: .mouseDown))
         XCTAssertFalse(suppress)
 
-        // Engine reset — "s" starts a fresh word
+        // Engine reset — "s" passes through as literal
         injector.callCount = 0
-        _ = handler.handleEvent(keyDown("s"))
-        XCTAssertEqual(injector.lastText, "s")
-        XCTAssertEqual(injector.lastBackspaceCount, 0)
+        type("s")
+        XCTAssertEqual(injector.callCount, 0)
     }
 
     func test_otherEvent_passesThrough() {
@@ -143,12 +144,11 @@ final class KeyboardEventHandlerTests: XCTestCase {
 
     // MARK: - Vietnamese Input
 
-    func test_plainLetter_injectsAndSuppresses() {
+    func test_plainLetter_passesThrough_withoutInjection() {
+        // Pure append (bs:0, text == typed char) → pass through original event
         let suppress = handler.handleEvent(keyDown("b"))
-        XCTAssertTrue(suppress)
-        XCTAssertEqual(injector.callCount, 1)
-        XCTAssertEqual(injector.lastText, "b")
-        XCTAssertEqual(injector.lastBackspaceCount, 0)
+        XCTAssertFalse(suppress)
+        XCTAssertEqual(injector.callCount, 0)
     }
 
     func test_toneOnVowel_injectsWithBackspace() {
@@ -163,12 +163,12 @@ final class KeyboardEventHandlerTests: XCTestCase {
     }
 
     func test_vieejt_produces_Viet() {
-        _ = handler.handleEvent(keyDown("V", shift: true))
-        _ = handler.handleEvent(keyDown("i"))
-        _ = handler.handleEvent(keyDown("e"))
-        _ = handler.handleEvent(keyDown("e"))  // circumflex ê
-        _ = handler.handleEvent(keyDown("j"))  // nặng
-        _ = handler.handleEvent(keyDown("t"))
+        type("V", shift: true)
+        type("i")
+        type("e")
+        type("e")  // circumflex ê
+        type("j")  // nặng
+        type("t")
 
         XCTAssertEqual(injector.screenContent, "Việt")
     }
@@ -193,63 +193,59 @@ final class KeyboardEventHandlerTests: XCTestCase {
     // MARK: - Pass-through Keys (Enter, Tab, Escape)
 
     func test_enterKey_resetsEngine_passesThrough() {
-        _ = handler.handleEvent(keyDown("v"))
-        _ = handler.handleEvent(keyDown("i"))
+        type("v")
+        type("i")
 
         let enterEvent = KeyEvent(type: .keyDown, keyCode: 0x24, character: "\n")
         let suppress = handler.handleEvent(enterEvent)
         XCTAssertFalse(suppress, "Enter must pass through as real key event")
 
-        // Engine reset — "s" starts a fresh word, not tone on "i"
+        // Engine reset — "s" passes through as literal
         injector.callCount = 0
-        _ = handler.handleEvent(keyDown("s"))
-        XCTAssertEqual(injector.lastText, "s")
-        XCTAssertEqual(injector.lastBackspaceCount, 0)
+        type("s")
+        XCTAssertEqual(injector.callCount, 0)
     }
 
     func test_tabKey_resetsEngine_passesThrough() {
-        _ = handler.handleEvent(keyDown("v"))
-        _ = handler.handleEvent(keyDown("i"))
+        type("v")
+        type("i")
 
         let tabEvent = KeyEvent(type: .keyDown, keyCode: 0x30, character: "\t")
         let suppress = handler.handleEvent(tabEvent)
         XCTAssertFalse(suppress, "Tab must pass through as real key event")
 
-        // Engine reset — "s" starts a fresh word, not tone on "i"
+        // Engine reset — "s" passes through as literal
         injector.callCount = 0
-        _ = handler.handleEvent(keyDown("s"))
-        XCTAssertEqual(injector.lastText, "s")
-        XCTAssertEqual(injector.lastBackspaceCount, 0)
+        type("s")
+        XCTAssertEqual(injector.callCount, 0)
     }
 
     func test_escapeKey_resetsEngine_passesThrough() {
-        _ = handler.handleEvent(keyDown("v"))
-        _ = handler.handleEvent(keyDown("i"))
+        type("v")
+        type("i")
 
         let escEvent = KeyEvent(type: .keyDown, keyCode: 0x35)
         let suppress = handler.handleEvent(escEvent)
         XCTAssertFalse(suppress, "Escape must pass through as real key event")
 
-        // Engine reset — "s" starts a fresh word, not tone on "i"
+        // Engine reset — "s" passes through as literal
         injector.callCount = 0
-        _ = handler.handleEvent(keyDown("s"))
-        XCTAssertEqual(injector.lastText, "s")
-        XCTAssertEqual(injector.lastBackspaceCount, 0)
+        type("s")
+        XCTAssertEqual(injector.callCount, 0)
     }
 
     // MARK: - resetEngine
 
     func test_resetEngine_clearsBuffer() {
-        _ = handler.handleEvent(keyDown("v"))
-        _ = handler.handleEvent(keyDown("i"))
+        type("v")
+        type("i")
 
         handler.resetEngine()
 
-        // After reset, "s" starts a fresh word (not tone on "i")
+        // After reset, "s" passes through as literal (not tone on "i")
         injector.callCount = 0
-        _ = handler.handleEvent(keyDown("s"))
-        XCTAssertEqual(injector.lastText, "s")
-        XCTAssertEqual(injector.lastBackspaceCount, 0)
+        type("s")
+        XCTAssertEqual(injector.callCount, 0)
     }
 
     // MARK: - English Detection Toggle
@@ -273,7 +269,7 @@ final class KeyboardEventHandlerTests: XCTestCase {
             injector: spy,
             detector: ConsonantClusterDetector()
         )
-        for c in "frost" { _ = handler.handleEvent(keyDown(c)) }
+        typeInto(handler, spy: spy, keys: "frost")
         XCTAssertEqual(spy.screenContent, "frost")
     }
 
@@ -286,7 +282,7 @@ final class KeyboardEventHandlerTests: XCTestCase {
         handler.setEnglishDetection(enabled: false)
         XCTAssertFalse(handler.isEnglishDetectionEnabled)
 
-        for c in "frost" { _ = handler.handleEvent(keyDown(c)) }
+        typeInto(handler, spy: spy, keys: "frost")
         XCTAssertEqual(spy.screenContent, "fr\u{00F3}t") // fróst → s applies sắc
     }
 
@@ -300,11 +296,31 @@ final class KeyboardEventHandlerTests: XCTestCase {
         handler.setEnglishDetection(enabled: true)
         handler.resetEngine()
 
-        for c in "frost" { _ = handler.handleEvent(keyDown(c)) }
+        typeInto(handler, spy: spy, keys: "frost")
         XCTAssertEqual(spy.screenContent, "frost")
     }
 
     // MARK: - Helpers
+
+    @discardableResult
+    private func type(_ char: Character, shift: Bool = false) -> Bool {
+        let event = keyDown(char, shift: shift)
+        let suppress = handler.handleEvent(event)
+        if !suppress, let c = event.character {
+            injector.passThrough(c)
+        }
+        return suppress
+    }
+
+    private func typeInto(_ handler: KeyboardEventHandler, spy: SpyInjector, keys: String) {
+        for c in keys {
+            let event = keyDown(c)
+            let suppress = handler.handleEvent(event)
+            if !suppress, let ch = event.character {
+                spy.passThrough(ch)
+            }
+        }
+    }
 
     private func keyDown(_ char: Character, shift: Bool = false) -> KeyEvent {
         KeyEvent(

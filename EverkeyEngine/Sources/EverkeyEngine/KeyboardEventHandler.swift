@@ -105,7 +105,12 @@ public class KeyboardEventHandler {
         // Process through engine
         let output = engine.processKey(key: character, shift: shift)
 
-        // If engine produced output that changes text, inject it
+        // Pure append: engine only appended the same char user typed → pass through original event
+        if output.backspaceCount == 0 && output.committedText == String(character) {
+            return false
+        }
+
+        // Engine produced a transformation → inject synthetic events
         if output.backspaceCount > 0 || !output.committedText.isEmpty {
             injector.inject(backspaceCount: output.backspaceCount, text: output.committedText)
             return true
