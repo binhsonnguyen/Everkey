@@ -2,11 +2,32 @@ import CoreGraphics
 import Foundation
 
 class CharacterInjector {
-    func inject(backspaceCount: Int, text: String, proxy: CGEventTapProxy) {
+    func inject(backspaceCount: Int, text: String, proxy: CGEventTapProxy, autocompleteWorkaround: Bool = false) {
         guard let source = CGEventSource(stateID: .privateState) else { return }
 
-        sendBackspaces(count: backspaceCount, source: source, proxy: proxy)
+        if autocompleteWorkaround && backspaceCount > 0 {
+            sendInvisibleChar(source: source, proxy: proxy)
+            sendBackspaces(count: backspaceCount + 1, source: source, proxy: proxy)
+        } else {
+            sendBackspaces(count: backspaceCount, source: source, proxy: proxy)
+        }
         sendUnicodeText(text, source: source, proxy: proxy)
+    }
+
+    // MARK: - Autocomplete Workaround
+
+    private func sendInvisibleChar(source: CGEventSource, proxy: CGEventTapProxy) {
+        var char: UniChar = 0x202F // Narrow No-Break Space — breaks browser autocomplete
+        guard let down = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false)
+        else { return }
+
+        down.keyboardSetUnicodeString(stringLength: 1, unicodeString: &char)
+        up.keyboardSetUnicodeString(stringLength: 1, unicodeString: &char)
+        down.setIntegerValueField(.eventSourceUserData, value: kEverkeyEventMarker)
+        up.setIntegerValueField(.eventSourceUserData, value: kEverkeyEventMarker)
+        down.tapPostEvent(proxy)
+        up.tapPostEvent(proxy)
     }
 
     // MARK: - Backspace

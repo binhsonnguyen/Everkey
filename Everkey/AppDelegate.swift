@@ -4,6 +4,18 @@ import EverkeyEngine
 class AppDelegate: NSObject, NSApplicationDelegate {
     private static let englishDetectionKey = "englishDetectionEnabled"
 
+    private static let browserBundleIDs: Set<String> = [
+        "com.apple.Safari",
+        "com.google.Chrome",
+        "com.google.Chrome.canary",
+        "com.brave.Browser",
+        "com.microsoft.edgemac",
+        "company.thebrowser.Browser", // Arc
+        "com.operasoftware.Opera",
+        "com.vivaldi.Vivaldi",
+        "org.mozilla.firefox",
+    ]
+
     private var statusItem: NSStatusItem!
     private let eventTapManager = EventTapManager()
     private let textInjector = CGTextInjector()
@@ -104,6 +116,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func activeAppChanged(_ notification: Notification) {
         keyboardHandler.resetEngine()
+
+        if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+           let bundleID = app.bundleIdentifier {
+            textInjector.needsAutocompleteFix = Self.browserBundleIDs.contains(bundleID)
+        }
     }
 
     // MARK: - Sleep/Wake
