@@ -41,6 +41,13 @@ public class KeyboardEventHandler {
         engine.reset()
     }
 
+    public func setVietnameseMode(_ enabled: Bool) {
+        guard enabled != isVietnamese else { return }
+        isVietnamese = enabled
+        engine.setActive(isVietnamese)
+        onToggle?(isVietnamese)
+    }
+
     /// Returns true if the event should be suppressed, false to pass through.
     public func handleEvent(_ event: KeyEvent) -> Bool {
         switch event.type {

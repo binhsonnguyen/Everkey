@@ -21,6 +21,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let textInjector = CGTextInjector()
     private var keyboardHandler: KeyboardEventHandler!
     private var englishDetectionItem: NSMenuItem!
+    private var languagePerApp: [String: Bool] = [:]
+    private var previousBundleID: String?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let detector = CompositeDetector([
@@ -115,12 +117,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func activeAppChanged(_ notification: Notification) {
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              let bundleID = app.bundleIdentifier else {
+            keyboardHandler.resetEngine()
+            return
+        }
+
+        // Save VN/EN state for outgoing app
+        if let prev = previousBundleID {
+            languagePerApp[prev] = keyboardHandler.isVietnamese
+        }
+
         keyboardHandler.resetEngine()
 
-        if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-           let bundleID = app.bundleIdentifier {
-            textInjector.needsAutocompleteFix = Self.browserBundleIDs.contains(bundleID)
-        }
+        // Restore VN/EN state for incoming app (default: Vietnamese)
+        let savedState = languagePerApp[bundleID] ?? true
+        keyboardHandler.setVietnameseMode(savedState)
+
+        textInjector.needsAutocompleteFix = Self.browserBundleIDs.contains(bundleID)
+        previousBundleID = bundleID
     }
 
     // MARK: - Sleep/Wake
