@@ -110,6 +110,11 @@ public class KeyboardEventHandler {
             return false
         }
 
+        // Single delete with no replacement: pass through original backspace event
+        if output.backspaceCount == 1 && output.committedText.isEmpty {
+            return false
+        }
+
         // Engine produced a transformation → inject synthetic events
         if output.backspaceCount > 0 || !output.committedText.isEmpty {
             injector.inject(backspaceCount: output.backspaceCount, text: output.committedText)

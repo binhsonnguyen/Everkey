@@ -151,6 +151,16 @@ final class KeyboardEventHandlerTests: XCTestCase {
         XCTAssertEqual(injector.callCount, 0)
     }
 
+    func test_backspace_onBuffer_passesThrough() {
+        type("v")
+
+        // Backspace pops "v" — original backspace event is sufficient
+        let bs = KeyEvent(type: .keyDown, keyCode: 0x33, character: "\u{08}")
+        let suppress = handler.handleEvent(bs)
+        XCTAssertFalse(suppress, "Backspace should pass through as original event")
+        XCTAssertEqual(injector.callCount, 0)
+    }
+
     func test_toneOnVowel_injectsWithBackspace() {
         // "a" then "s" → "á"
         _ = handler.handleEvent(keyDown("a"))
