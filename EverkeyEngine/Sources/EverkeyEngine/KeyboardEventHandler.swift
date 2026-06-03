@@ -4,6 +4,7 @@ public class KeyboardEventHandler {
     private let engine: VNEngine
     private let injector: TextInjecting
     public private(set) var isVietnamese = true
+    public private(set) var isEnglishDetectionEnabled: Bool = true
     public var onToggle: ((Bool) -> Void)?
 
     private let passthroughKeys: Set<Int64> = [
@@ -11,24 +12,41 @@ public class KeyboardEventHandler {
         0x30, // Tab
         0x35, // Escape
     ]
+
     private let cursorMovementKeys: Set<Int64> = [
-        0x7B, 0x7C, 0x7E, 0x7D, // Arrow keys
-        0x73, 0x77, 0x74, 0x79, // Home/End/PgUp/PgDn
+        0x7B, // Left Arrow
+        0x7C, // Right Arrow
+        0x7E, // Up Arrow
+        0x7D, // Down Arrow
+        0x73, // Home
+        0x77, // End
+        0x74, // Page Up
+        0x79, // Page Down
     ]
-    private static let backspaceKey: Int64 = 0x33
+
+    private static let backspaceKeyCode: Int64 = 0x33
 
     public init(injector: TextInjecting) {
         self.engine = VNEngine()
         self.injector = injector
-        // Configure engine once at init. These settings worked in production.
-        var s = VNEngine.EngineSettings()
-        s.inputMethod = .telex
-        s.spellCheckEnabled = true
-        s.restoreIfWrongSpelling = true
-        engine.updateSettings(s)
+        applyDefaultSettings()
     }
 
-    // MARK: - Public API
+    private func applyDefaultSettings() {
+        var settings = VNEngine.EngineSettings()
+        settings.inputMethod = .telex
+        settings.spellCheckEnabled = true
+        settings.restoreIfWrongSpelling = true
+        engine.updateSettings(settings)
+    }
+
+    public func setEnglishDetection(enabled: Bool) {
+        isEnglishDetectionEnabled = enabled
+        var settings = VNEngine.EngineSettings()
+        settings.inputMethod = currentInputMethod
+        settings.spellCheckEnabled = enabled
+        engine.updateSettings(settings)
+    }
 
     public func resetEngine() {
         engine.reset()
@@ -42,21 +60,15 @@ public class KeyboardEventHandler {
         onToggle?(isVietnamese)
     }
 
-    /// Undo the last Vietnamese transformation (revert "việt" → "viet").
-    public func performUndo() -> Bool {
-        guard engine.canUndoTyping() else { return false }
-        let result = engine.undoTyping()
-        guard result.shouldConsume else { return false }
-        let text = result.newCharacters.map { $0.unicode(codeTable: .unicode) }.joined()
-        injector.inject(backspaceCount: result.backspaceCount, text: text)
-        return true
-    }
-
     public func handleEvent(_ event: KeyEvent) -> Bool {
         switch event.type {
-        case .keyDown:  return handleKeyDown(event)
-        case .mouseDown: engine.reset(); return false
-        case .other:    return false
+        case .keyDown:
+            return handleKeyDown(event)
+        case .mouseDown:
+            engine.reset()
+            return false
+        case .other:
+            return false
         }
     }
 
@@ -69,9 +81,12 @@ public class KeyboardEventHandler {
     private func handleKeyDown(_ event: KeyEvent) -> Bool {
         let keyCode = event.keyCode
 
-        // Ctrl+Space fallback toggle (active when EventTapManager doesn't consume it)
+        // Toggle hotkey: Ctrl+Space
         if keyCode == 0x31 && event.flags.contains(.control) {
-            setVietnameseMode(!isVietnamese)
+            isVietnamese.toggle()
+            engine.vLanguage = isVietnamese ? 1 : 0
+            if !isVietnamese { engine.reset() }
+            onToggle?(isVietnamese)
             return true
         }
 
@@ -93,7 +108,7 @@ public class KeyboardEventHandler {
             return false
         }
 
-        if keyCode == Self.backspaceKey {
+        if keyCode == Self.backspaceKeyCode {
             return inject(engine.processBackspace())
         }
 

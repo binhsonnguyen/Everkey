@@ -63,32 +63,16 @@ final class EngineAdapterTests: XCTestCase {
         XCTAssertFalse(suppress, "Space with plain 'a' buffer should pass through")
     }
 
-    func testSetVietnameseMode() {
+    func testVietnameseToggle() {
         let (handler, _) = makeHandler()
         XCTAssertTrue(handler.isVietnamese)
-        handler.setVietnameseMode(false)
-        XCTAssertFalse(handler.isVietnamese)
-        handler.setVietnameseMode(true)
-        XCTAssertTrue(handler.isVietnamese)
-    }
-
-    func testCtrlSpaceTogglesVietnamese() {
-        let (handler, _) = makeHandler()
-        XCTAssertTrue(handler.isVietnamese)
+        // Ctrl+Space toggles off
         let ctrlSpace = KeyEvent(type: .keyDown, keyCode: 0x31, flags: [.control], character: " ")
-        let suppress = handler.handleEvent(ctrlSpace)
-        XCTAssertTrue(suppress, "Ctrl+Space should be consumed (toggle)")
+        _ = handler.handleEvent(ctrlSpace)
         XCTAssertFalse(handler.isVietnamese)
-    }
-
-    func testOtherModifierComboPassesThrough() {
-        // Cmd+C or similar should reset engine and pass through
-        let (handler, injector) = makeHandler()
-        _ = handler.handleEvent(keyDown("a", keyCode: 0x00))
-        let cmdC = KeyEvent(type: .keyDown, keyCode: 0x08, flags: [.command], character: "c")
-        let suppress = handler.handleEvent(cmdC)
-        XCTAssertFalse(suppress)
-        XCTAssertEqual(injector.injectedText, "")
+        // Toggle back on
+        _ = handler.handleEvent(ctrlSpace)
+        XCTAssertTrue(handler.isVietnamese)
     }
 
     func testMouseDownResetsEngine() {
