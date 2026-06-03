@@ -1,13 +1,14 @@
+import CoreGraphics
+
 public class KeyboardEventHandler {
-    private var engine = Engine()
+    private let engine: VNEngine
     private let injector: TextInjecting
-    private let detector: NonVietnameseDetecting?
     public private(set) var isVietnamese = true
-    public private(set) var isEnglishDetectionEnabled: Bool
+    public private(set) var isEnglishDetectionEnabled: Bool = true
     public var onToggle: ((Bool) -> Void)?
 
     private let passthroughKeys: Set<Int64> = [
-        0x24, // Enter (Return)
+        0x24, // Enter
         0x30, // Tab
         0x35, // Escape
     ]
@@ -23,18 +24,28 @@ public class KeyboardEventHandler {
         0x79, // Page Down
     ]
 
-    public init(injector: TextInjecting, detector: NonVietnameseDetecting? = nil) {
+    private static let backspaceKeyCode: Int64 = 0x33
+
+    public init(injector: TextInjecting) {
+        self.engine = VNEngine()
         self.injector = injector
-        self.detector = detector
-        self.isEnglishDetectionEnabled = detector != nil
-        if let detector = detector {
-            engine.setDetector(detector)
-        }
+        applyDefaultSettings()
+    }
+
+    private func applyDefaultSettings() {
+        var settings = VNEngine.EngineSettings()
+        settings.inputMethod = .telex
+        settings.spellCheckEnabled = true
+        settings.restoreIfWrongSpelling = true
+        engine.updateSettings(settings)
     }
 
     public func setEnglishDetection(enabled: Bool) {
         isEnglishDetectionEnabled = enabled
-        engine.setDetector(enabled ? detector : nil)
+        var settings = VNEngine.EngineSettings()
+        settings.inputMethod = currentInputMethod
+        settings.spellCheckEnabled = enabled
+        engine.updateSettings(settings)
     }
 
     public func resetEngine() {
@@ -44,11 +55,11 @@ public class KeyboardEventHandler {
     public func setVietnameseMode(_ enabled: Bool) {
         guard enabled != isVietnamese else { return }
         isVietnamese = enabled
-        engine.setActive(isVietnamese)
+        engine.vLanguage = isVietnamese ? 1 : 0
+        if !isVietnamese { engine.reset() }
         onToggle?(isVietnamese)
     }
 
-    /// Returns true if the event should be suppressed, false to pass through.
     public func handleEvent(_ event: KeyEvent) -> Bool {
         switch event.type {
         case .keyDown:
@@ -61,66 +72,65 @@ public class KeyboardEventHandler {
         }
     }
 
-    // MARK: - Key Down
+    // MARK: - Private
+
+    private var currentInputMethod: InputMethod {
+        InputMethod(rawValue: engine.vInputType) ?? .telex
+    }
 
     private func handleKeyDown(_ event: KeyEvent) -> Bool {
         let keyCode = event.keyCode
 
         // Toggle hotkey: Ctrl+Space
-        let spaceKeyCode: Int64 = 0x31
-        if keyCode == spaceKeyCode && event.flags.contains(.control) {
+        if keyCode == 0x31 && event.flags.contains(.control) {
             isVietnamese.toggle()
-            engine.setActive(isVietnamese)
+            engine.vLanguage = isVietnamese ? 1 : 0
+            if !isVietnamese { engine.reset() }
             onToggle?(isVietnamese)
             return true
         }
 
-        // Key repeat → pass through
         if event.isRepeat { return false }
 
-        // Pass-through keys (Enter, Tab, Escape) → reset engine, pass through real event
         if passthroughKeys.contains(keyCode) {
             engine.reset()
             return false
         }
 
-        // Cursor movement → reset engine, pass through
         if cursorMovementKeys.contains(keyCode) {
-            engine.reset()
+            engine.resetWithCursorMoved()
             return false
         }
 
-        // Modifier combo (Cmd/Ctrl/Alt + key) → reset engine, pass through
         let modifierMask: KeyEventFlags = [.command, .control, .option]
         if !event.flags.intersection(modifierMask).isEmpty {
             engine.reset()
             return false
         }
 
-        // Extract character
+        if keyCode == Self.backspaceKeyCode {
+            return inject(engine.processBackspace())
+        }
+
         guard let character = event.character else { return false }
 
-        let shift = event.flags.contains(.shift) || event.flags.contains(.capsLock)
+        let isUppercase = event.flags.contains(.shift) != event.flags.contains(.capsLock)
 
-        // Process through engine
-        let output = engine.processKey(key: character, shift: shift)
-
-        // Pure append: engine only appended the same char user typed → pass through original event
-        if output.backspaceCount == 0 && output.committedText == String(character) {
-            return false
+        if VNEngine.isWordBreak(character: character, inputMethod: currentInputMethod) {
+            return inject(engine.processWordBreak(character: character))
         }
 
-        // Single delete with no replacement: pass through original backspace event
-        if output.backspaceCount == 1 && output.committedText.isEmpty {
-            return false
-        }
+        return inject(engine.processKey(
+            character: character,
+            keyCode: CGKeyCode(keyCode),
+            isUppercase: isUppercase
+        ))
+    }
 
-        // Engine produced a transformation → inject synthetic events
-        if output.backspaceCount > 0 || !output.committedText.isEmpty {
-            injector.inject(backspaceCount: output.backspaceCount, text: output.committedText)
-            return true
-        }
-
-        return false
+    private func inject(_ result: VNEngine.ProcessResult) -> Bool {
+        guard result.shouldConsume else { return false }
+        let text = result.newCharacters.map { $0.unicode(codeTable: .unicode) }.joined()
+        injector.inject(backspaceCount: result.backspaceCount, text: text)
+        return true
     }
 }

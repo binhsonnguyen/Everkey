@@ -25,13 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var previousBundleID: String?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let detector = CompositeDetector([
-            ConsonantClusterDetector(),
-            InvalidCodaDetector(),
-            InvalidVowelNucleiDetector(),
-            ToneCodaRestrictionDetector(),
-        ])
-        keyboardHandler = KeyboardEventHandler(injector: textInjector, detector: detector)
+        keyboardHandler = KeyboardEventHandler(injector: textInjector)
 
         let isEnabled = UserDefaults.standard.object(forKey: Self.englishDetectionKey) as? Bool ?? true
         if !isEnabled {
