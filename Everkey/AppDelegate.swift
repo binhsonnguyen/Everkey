@@ -51,7 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Status Bar (NSMenu)
 
     private func setupStatusBar() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         updateStatusBarIcon(isVietnamese: true)
         statusItem.menu = buildMenu()
 
@@ -113,8 +113,54 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateStatusBarIcon(isVietnamese: Bool) {
-        statusItem?.button?.title = isVietnamese ? "V" : "E"
+        statusItem?.button?.image = makeStatusBarImage(isVietnamese: isVietnamese)
+        statusItem?.button?.title = ""
         vietnameseMenuItem?.state = isVietnamese ? .on : .off
+    }
+
+    private func makeStatusBarImage(isVietnamese: Bool) -> NSImage {
+        let text = isVietnamese ? "V" : "E"
+        let font = NSFont.boldSystemFont(ofSize: 12)
+        let textAttrs: [NSAttributedString.Key: Any] = [.font: font]
+        let textSize = (text as NSString).size(withAttributes: textAttrs)
+        let hPad: CGFloat = 5
+        let width = max(textSize.width + hPad * 2, 22)
+        let height: CGFloat = 17
+        let size = NSSize(width: width, height: height)
+
+        let image = NSImage(size: size, flipped: false) { rect in
+            let inset = rect.insetBy(dx: 1, dy: 1)
+            let path = NSBezierPath(roundedRect: inset, xRadius: 4, yRadius: 4)
+
+            if isVietnamese {
+                // Filled style (như "A" của ABC) — Vietnamese = primary mode
+                NSColor(white: 1.0, alpha: 0.95).setFill()
+                path.fill()
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: NSColor.black,
+                ]
+                let str = NSAttributedString(string: text, attributes: attrs)
+                let strSize = str.size()
+                str.draw(at: NSPoint(x: (size.width - strSize.width) / 2,
+                                     y: (size.height - strSize.height) / 2))
+            } else {
+                // Outline style (như "VI") — English = secondary mode
+                NSColor(white: 1.0, alpha: 0.85).setStroke()
+                path.lineWidth = 1.5
+                path.stroke()
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: NSColor(white: 1.0, alpha: 0.85),
+                ]
+                let str = NSAttributedString(string: text, attributes: attrs)
+                let strSize = str.size()
+                str.draw(at: NSPoint(x: (size.width - strSize.width) / 2,
+                                     y: (size.height - strSize.height) / 2))
+            }
+            return true
+        }
+        return image
     }
 
     // MARK: - Event Tap
