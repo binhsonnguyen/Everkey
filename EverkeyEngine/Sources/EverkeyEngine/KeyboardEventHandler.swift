@@ -40,6 +40,15 @@ public class KeyboardEventHandler {
         engine.updateSettings(settings)
     }
 
+    public func performUndo() -> Bool {
+        guard engine.canUndoTyping() else { return false }
+        let result = engine.undoTyping()
+        guard result.shouldConsume else { return false }
+        let text = result.newCharacters.map { $0.unicode(codeTable: .unicode) }.joined()
+        injector.inject(backspaceCount: result.backspaceCount, text: text)
+        return true
+    }
+
     public func setEnglishDetection(enabled: Bool) {
         isEnglishDetectionEnabled = enabled
         var settings = VNEngine.EngineSettings()
