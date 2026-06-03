@@ -1,6 +1,5 @@
 import Cocoa
 import SwiftUI
-import Combine
 import EverkeyEngine
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -15,8 +14,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Status bar
 
     private var statusItem: NSStatusItem!
-    private var popover: NSPopover!
-    private var statusMenuViewModel: StatusBarViewModel!
+    private var vietnameseMenuItem: NSMenuItem!
     private var settingsWindowController: SettingsWindowController?
 
     // MARK: - App-switch state
@@ -26,10 +24,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Hotkey capture (for settings recorder)
 
-    /// When set, the next valid keyDown event is captured as a hotkey instead of normal processing.
     var hotkeyCaptureCallback: ((Hotkey) -> Void)?
 
-    // MARK: - Modifier-only hotkey state (tracked in onEvent closure)
+    // MARK: - Modifier-only hotkey state
 
     private var modOnlyReached = false
     private var modOnlyTriggered = false
@@ -44,66 +41,63 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         keyboardHandler = KeyboardEventHandler(injector: textInjector)
-
         setupStatusBar()
-
         if !checkAccessibilityPermission() { promptAccessibilityPermission() }
-
         setupEventTap()
         setupAppSwitchObserver()
         setupSleepWakeObserver()
     }
 
-    // MARK: - Status Bar (SwiftUI popover)
+    // MARK: - Status Bar (NSMenu)
 
     private func setupStatusBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         updateStatusBarIcon(isVietnamese: true)
-
-        statusMenuViewModel = StatusBarViewModel()
-        statusMenuViewModel.isVietnamese = keyboardHandler.isVietnamese
-        statusMenuViewModel.onToggleVietnamese = { [weak self] in
-            guard let self else { return }
-            self.keyboardHandler.setVietnameseMode(!self.keyboardHandler.isVietnamese)
-        }
-        statusMenuViewModel.onOpenSettings = { [weak self] in self?.openSettings() }
-        statusMenuViewModel.onQuit = { NSApplication.shared.terminate(nil) }
-
-        let menuController = NSHostingController(rootView: StatusMenuView(viewModel: statusMenuViewModel))
-        popover = NSPopover()
-        popover.behavior = .transient
-        popover.animates = true
-        popover.contentViewController = menuController
+        statusItem.menu = buildMenu()
 
         keyboardHandler.onToggle = { [weak self] isVietnamese in
             self?.updateStatusBarIcon(isVietnamese: isVietnamese)
         }
-
-        if let button = statusItem.button {
-            button.target = self
-            button.action = #selector(togglePopover)
-            button.sendAction(on: [.leftMouseDown])
-        }
     }
 
-    @objc private func togglePopover() {
-        guard let button = statusItem.button else { return }
-        if popover.isShown {
-            popover.performClose(nil)
-        } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        }
+    private func buildMenu() -> NSMenu {
+        let menu = NSMenu()
+
+        vietnameseMenuItem = NSMenuItem(
+            title: "Gõ Tiếng Việt",
+            action: #selector(toggleVietnamese),
+            keyEquivalent: ""
+        )
+        vietnameseMenuItem.target = self
+        vietnameseMenuItem.state = .on
+        menu.addItem(vietnameseMenuItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let settingsItem = NSMenuItem(
+            title: "Bảng điều khiển...",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        menu.addItem(NSMenuItem(
+            title: "Thoát Everkey",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        ))
+
+        return menu
     }
 
-    private func updateStatusBarIcon(isVietnamese: Bool) {
-        statusItem?.button?.title = isVietnamese ? "V" : "E"
-        statusMenuViewModel?.isVietnamese = isVietnamese
+    @objc private func toggleVietnamese() {
+        keyboardHandler.setVietnameseMode(!keyboardHandler.isVietnamese)
     }
 
-    // MARK: - Settings Window
-
-    private func openSettings() {
-        popover.performClose(nil)
+    @objc private func openSettings() {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController(
                 settings: settings,
@@ -118,6 +112,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindowController?.showSettings()
     }
 
+    private func updateStatusBarIcon(isVietnamese: Bool) {
+        statusItem?.button?.title = isVietnamese ? "V" : "E"
+        vietnameseMenuItem?.state = isVietnamese ? .on : .off
+    }
+
     // MARK: - Event Tap
 
     private func setupEventTap() {
@@ -128,53 +127,42 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if let capture = self.hotkeyCaptureCallback, type == .keyDown {
                 let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
                 let eventMods = ModifierFlags(from: event.flags)
-                if keyCode == 0x35 {               // Escape = cancel
+                if keyCode == 0x35 {
                     self.hotkeyCaptureCallback = nil
-                    return nil
-                } else if !eventMods.isEmpty {     // Valid: needs at least one modifier
+                } else if !eventMods.isEmpty {
                     let newHotkey = Hotkey(keyCode: keyCode, modifiers: eventMods)
                     self.hotkeyCaptureCallback = nil
                     DispatchQueue.main.async { capture(newHotkey) }
-                    return nil
                 }
+                return nil
             }
 
             // ── Configurable toggle hotkey ─────────────────────────────────────
             let hotkey = self.settings.toggleHotkey
             if hotkey.isModifierOnly {
-                // Modifier-only: trigger on full-release after holding required mods
                 if type == .flagsChanged {
                     let eventMods = ModifierFlags(from: event.flags)
                     let allMods: ModifierFlags = [.control, .shift, .option, .command, .function]
                     let hasExactly = hotkey.modifiers.isSubset(of: eventMods)
                         && eventMods.intersection(allMods) == hotkey.modifiers
                     if hasExactly {
-                        if !self.modOnlyReached {
-                            self.modOnlyReached = true
-                            self.modOnlyTriggered = false
-                        }
+                        if !self.modOnlyReached { self.modOnlyReached = true; self.modOnlyTriggered = false }
                     } else {
                         if self.modOnlyReached && !self.modOnlyTriggered {
                             self.modOnlyTriggered = true
-                            DispatchQueue.main.async {
-                                self.keyboardHandler.setVietnameseMode(!self.keyboardHandler.isVietnamese)
-                            }
+                            DispatchQueue.main.async { self.keyboardHandler.setVietnameseMode(!self.keyboardHandler.isVietnamese) }
                         }
                         self.modOnlyReached = false
                     }
                 } else if type == .keyDown && self.modOnlyReached {
-                    self.modOnlyReached = false
-                    self.modOnlyTriggered = true
+                    self.modOnlyReached = false; self.modOnlyTriggered = true
                 }
             } else if type == .keyDown {
-                // Regular key+modifier hotkey
                 let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
                 let eventMods = ModifierFlags(from: event.flags)
                 if keyCode == hotkey.keyCode && eventMods == hotkey.modifiers {
-                    DispatchQueue.main.async {
-                        self.keyboardHandler.setVietnameseMode(!self.keyboardHandler.isVietnamese)
-                    }
-                    return nil  // consume
+                    DispatchQueue.main.async { self.keyboardHandler.setVietnameseMode(!self.keyboardHandler.isVietnamese) }
+                    return nil
                 }
             }
 
@@ -182,19 +170,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if self.settings.undoEnabled && type == .keyDown {
                 let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
                 let eventMods = ModifierFlags(from: event.flags)
-                let triggered: Bool
-                if let undo = self.settings.undoHotkey {
-                    triggered = keyCode == undo.keyCode && eventMods == undo.modifiers
-                } else {
-                    triggered = keyCode == 0x35 && eventMods.isEmpty  // Escape
-                }
+                let triggered = self.settings.undoHotkey.map { keyCode == $0.keyCode && eventMods == $0.modifiers }
+                    ?? (keyCode == 0x35 && eventMods.isEmpty)
                 if triggered {
                     DispatchQueue.main.async { _ = self.keyboardHandler.performUndo() }
                     return nil
                 }
             }
 
-            // ── Normal event processing ────────────────────────────────────────
+            // ── Normal processing ──────────────────────────────────────────────
             self.textInjector.currentProxy = proxy
             let keyEvent = CGEventAdapter.adapt(event: event, type: type)
             let suppress = self.keyboardHandler.handleEvent(keyEvent)
@@ -202,7 +186,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if !eventTapManager.start() {
-            NSLog("[Everkey] Failed to create event tap. Check Accessibility permission.")
+            NSLog("[Everkey] Failed to create event tap.")
         }
     }
 
@@ -217,10 +201,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func activeAppChanged(_ notification: Notification) {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-              let bundleID = app.bundleIdentifier else {
-            keyboardHandler.resetEngine()
-            return
-        }
+              let bundleID = app.bundleIdentifier else { keyboardHandler.resetEngine(); return }
         if let prev = previousBundleID { languagePerApp[prev] = keyboardHandler.isVietnamese }
         keyboardHandler.resetEngine()
         let saved = languagePerApp[bundleID] ?? true
@@ -250,12 +231,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Accessibility
 
     private func checkAccessibilityPermission() -> Bool {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false] as CFDictionary
-        return AXIsProcessTrustedWithOptions(options)
+        AXIsProcessTrustedWithOptions(
+            [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false] as CFDictionary
+        )
     }
 
     private func promptAccessibilityPermission() {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        AXIsProcessTrustedWithOptions(options)
+        AXIsProcessTrustedWithOptions(
+            [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+        )
     }
 }
