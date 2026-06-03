@@ -19,11 +19,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var previousBundleID: String?
     private var cancellables = Set<AnyCancellable>()
 
+    private static let browserBundleIDs: Set<String> = [
+        "com.apple.Safari",
+        "com.google.Chrome",
+        "com.google.Chrome.canary",
+        "com.brave.Browser",
+        "com.microsoft.edgemac",
+        "company.thebrowser.Browser",
+        "com.operasoftware.Opera",
+        "com.vivaldi.Vivaldi",
+        "org.mozilla.firefox",
+    ]
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         keyboardHandler = KeyboardEventHandler(injector: textInjector)
-        applySettings()
+
         setupStatusBar()
-        setupHotkeyObserver()
 
         if !checkAccessibilityPermission() {
             promptAccessibilityPermission()
@@ -32,90 +43,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupEventTap()
         setupAppSwitchObserver()
         setupSleepWakeObserver()
-    }
-
-    // MARK: - Settings → Engine + EventTap
-
-    private func applySettings() {
-        keyboardHandler.setInputMethod(settings.inputMethod)
-        keyboardHandler.setEnglishDetection(enabled: settings.spellCheckEnabled)
-
-        eventTapManager.toggleHotkey = settings.toggleHotkey
-        eventTapManager.undoEnabled = settings.undoEnabled
-        eventTapManager.undoHotkey = settings.undoHotkey
-
-        eventTapManager.onToggleHotkey = { [weak self] in
-            guard let self else { return }
-            let newState = !self.keyboardHandler.isVietnamese
-            self.keyboardHandler.setVietnameseMode(newState)
-            self.statusMenuViewModel.isVietnamese = newState
-            self.updateStatusBarIcon(isVietnamese: newState)
-        }
-
-        eventTapManager.onUndoTyping = { [weak self] in
-            _ = self?.keyboardHandler.performUndo()
-        }
-    }
-
-    private func setupHotkeyObserver() {
-        // Re-sync hotkeys when settings change
-        settings.$toggleHotkey
-            .sink { [weak self] hotkey in self?.eventTapManager.toggleHotkey = hotkey }
-            .store(in: &cancellables)
-        settings.$undoEnabled
-            .sink { [weak self] enabled in self?.eventTapManager.undoEnabled = enabled }
-            .store(in: &cancellables)
-        settings.$undoHotkey
-            .sink { [weak self] hotkey in self?.eventTapManager.undoHotkey = hotkey }
-            .store(in: &cancellables)
-        settings.$inputMethod
-            .sink { [weak self] method in self?.keyboardHandler.setInputMethod(method) }
-            .store(in: &cancellables)
-        settings.$spellCheckEnabled
-            .sink { [weak self] enabled in self?.keyboardHandler.setEnglishDetection(enabled: enabled) }
-            .store(in: &cancellables)
-
-        // Keep recording state in sync with EventTapManager
-        NotificationCenter.default.addObserver(forName: .hotkeyRecordingStateChanged, object: nil, queue: .main) { [weak self] note in
-            let recording = (note.userInfo?["isRecording"] as? Bool) ?? false
-            self?.eventTapManager.isHotkeyRecording = recording
-        }
+        setupHotkeySync()
     }
 
     // MARK: - Status Bar
 
     private func setupStatusBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        updateStatusBarIcon(isVietnamese: true)
 
         statusMenuViewModel = StatusBarViewModel()
         statusMenuViewModel.isVietnamese = keyboardHandler.isVietnamese
 
         statusMenuViewModel.onToggleVietnamese = { [weak self] in
             guard let self else { return }
-            let newState = !self.keyboardHandler.isVietnamese
-            self.keyboardHandler.setVietnameseMode(newState)
-            self.statusMenuViewModel.isVietnamese = newState
-            self.updateStatusBarIcon(isVietnamese: newState)
+            self.keyboardHandler.setVietnameseMode(!self.keyboardHandler.isVietnamese)
         }
+        statusMenuViewModel.onOpenSettings = { [weak self] in self?.openSettings() }
+        statusMenuViewModel.onQuit = { NSApplication.shared.terminate(nil) }
 
-        statusMenuViewModel.onOpenSettings = { [weak self] in
-            self?.openSettings()
-        }
-
-        statusMenuViewModel.onQuit = {
-            NSApplication.shared.terminate(nil)
-        }
-
-        // Popover
+        let menuController = NSHostingController(rootView: StatusMenuView(viewModel: statusMenuViewModel))
+        menuController.view.frame = NSRect(x: 0, y: 0, width: 240, height: 140)
         popover = NSPopover()
         popover.behavior = .transient
         popover.animates = true
-        let menuController = NSHostingController(rootView: StatusMenuView(viewModel: statusMenuViewModel))
-        menuController.view.frame = NSRect(x: 0, y: 0, width: 240, height: 140)
         popover.contentViewController = menuController
         popover.contentSize = NSSize(width: 240, height: 140)
-
-        updateStatusBarIcon(isVietnamese: true)
 
         if let button = statusItem.button {
             button.target = self
@@ -134,7 +87,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateStatusBarIcon(isVietnamese: Bool) {
-        statusItem.button?.title = isVietnamese ? "V" : "E"
+        statusItem?.button?.title = isVietnamese ? "V" : "E"
+        statusMenuViewModel?.isVietnamese = isVietnamese
     }
 
     // MARK: - Settings Window
@@ -150,6 +104,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Event Tap
 
     private func setupEventTap() {
+        // onToggle updates the status bar icon
+        keyboardHandler.onToggle = { [weak self] isVietnamese in
+            self?.updateStatusBarIcon(isVietnamese: isVietnamese)
+        }
+
         eventTapManager.onEvent = { [weak self] proxy, type, event in
             guard let self else { return Unmanaged.passUnretained(event) }
             self.textInjector.currentProxy = proxy
@@ -163,14 +122,56 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // MARK: - Configurable hotkeys (EventTapManager)
+
+    private func setupHotkeySync() {
+        // Wire EventTapManager callbacks
+        eventTapManager.onToggleHotkey = { [weak self] in
+            guard let self else { return }
+            self.keyboardHandler.setVietnameseMode(!self.keyboardHandler.isVietnamese)
+        }
+        eventTapManager.onUndoTyping = { [weak self] in
+            _ = self?.keyboardHandler.performUndo()
+        }
+
+        // Apply stored settings
+        applyHotkeySettings()
+
+        // Re-apply when settings change
+        settings.$toggleHotkey
+            .dropFirst()
+            .sink { [weak self] _ in self?.applyHotkeySettings() }
+            .store(in: &cancellables)
+        settings.$undoEnabled
+            .dropFirst()
+            .sink { [weak self] _ in self?.applyHotkeySettings() }
+            .store(in: &cancellables)
+        settings.$undoHotkey
+            .dropFirst()
+            .sink { [weak self] _ in self?.applyHotkeySettings() }
+            .store(in: &cancellables)
+
+        // Suspend hotkey detection while recording
+        NotificationCenter.default.addObserver(
+            forName: .hotkeyRecordingStateChanged, object: nil, queue: .main
+        ) { [weak self] note in
+            let recording = (note.userInfo?["isRecording"] as? Bool) ?? false
+            self?.eventTapManager.isHotkeyRecording = recording
+        }
+    }
+
+    private func applyHotkeySettings() {
+        eventTapManager.toggleHotkey = settings.toggleHotkey
+        eventTapManager.undoEnabled = settings.undoEnabled
+        eventTapManager.undoHotkey = settings.undoHotkey
+    }
+
     // MARK: - App Switch
 
     private func setupAppSwitchObserver() {
         NSWorkspace.shared.notificationCenter.addObserver(
-            self,
-            selector: #selector(activeAppChanged),
-            name: NSWorkspace.didActivateApplicationNotification,
-            object: nil
+            self, selector: #selector(activeAppChanged),
+            name: NSWorkspace.didActivateApplicationNotification, object: nil
         )
     }
 
@@ -189,24 +190,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let savedState = languagePerApp[bundleID] ?? true
         keyboardHandler.setVietnameseMode(savedState)
-        statusMenuViewModel.isVietnamese = savedState
-        updateStatusBarIcon(isVietnamese: savedState)
 
         textInjector.needsAutocompleteFix = Self.browserBundleIDs.contains(bundleID)
         previousBundleID = bundleID
     }
-
-    private static let browserBundleIDs: Set<String> = [
-        "com.apple.Safari",
-        "com.google.Chrome",
-        "com.google.Chrome.canary",
-        "com.brave.Browser",
-        "com.microsoft.edgemac",
-        "company.thebrowser.Browser",
-        "com.operasoftware.Opera",
-        "com.vivaldi.Vivaldi",
-        "org.mozilla.firefox",
-    ]
 
     // MARK: - Sleep/Wake
 

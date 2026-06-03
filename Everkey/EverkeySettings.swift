@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import EverkeyEngine
 
 private let kSettingsKey = "EverkeySettings"
 
@@ -10,20 +9,15 @@ class EverkeySettings: ObservableObject {
     @Published var toggleHotkey: Hotkey = Hotkey(keyCode: 49, modifiers: [.control])  // Ctrl+Space
     @Published var undoEnabled: Bool = false
     @Published var undoHotkey: Hotkey? = nil        // nil = Escape
-    @Published var inputMethod: InputMethod = .simpleTelex1
-    @Published var spellCheckEnabled: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
 
     private init() {
         load()
-        // Auto-save on any change
         Publishers.MergeMany(
             $toggleHotkey.map { _ in () }.eraseToAnyPublisher(),
             $undoEnabled.map { _ in () }.eraseToAnyPublisher(),
-            $undoHotkey.map { _ in () }.eraseToAnyPublisher(),
-            $inputMethod.map { _ in () }.eraseToAnyPublisher(),
-            $spellCheckEnabled.map { _ in () }.eraseToAnyPublisher()
+            $undoHotkey.map { _ in () }.eraseToAnyPublisher()
         )
         .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
         .sink { [weak self] in self?.save() }
@@ -34,9 +28,7 @@ class EverkeySettings: ObservableObject {
         let data = Snapshot(
             toggleHotkey: toggleHotkey,
             undoEnabled: undoEnabled,
-            undoHotkey: undoHotkey,
-            inputMethod: inputMethod.rawValue,
-            spellCheckEnabled: spellCheckEnabled
+            undoHotkey: undoHotkey
         )
         if let encoded = try? JSONEncoder().encode(data) {
             UserDefaults.standard.set(encoded, forKey: kSettingsKey)
@@ -49,17 +41,11 @@ class EverkeySettings: ObservableObject {
         toggleHotkey = snapshot.toggleHotkey
         undoEnabled = snapshot.undoEnabled
         undoHotkey = snapshot.undoHotkey
-        inputMethod = InputMethod(rawValue: snapshot.inputMethod) ?? .telex
-        spellCheckEnabled = snapshot.spellCheckEnabled
     }
-
-    // MARK: - Codable snapshot (separate from ObservableObject)
 
     private struct Snapshot: Codable {
         var toggleHotkey: Hotkey
         var undoEnabled: Bool
         var undoHotkey: Hotkey?
-        var inputMethod: Int
-        var spellCheckEnabled: Bool
     }
 }

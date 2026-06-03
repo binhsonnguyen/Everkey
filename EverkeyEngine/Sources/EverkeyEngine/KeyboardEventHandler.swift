@@ -4,64 +4,31 @@ public class KeyboardEventHandler {
     private let engine: VNEngine
     private let injector: TextInjecting
     public private(set) var isVietnamese = true
-    public private(set) var isEnglishDetectionEnabled: Bool = true
+    public var onToggle: ((Bool) -> Void)?
 
-    private static let passthroughKeys: Set<Int64> = [
-        0x24, // Return
+    private let passthroughKeys: Set<Int64> = [
+        0x24, // Enter
         0x30, // Tab
         0x35, // Escape
     ]
-    private static let cursorMovementKeys: Set<Int64> = [
-        0x7B, // Left Arrow
-        0x7C, // Right Arrow
-        0x7E, // Up Arrow
-        0x7D, // Down Arrow
-        0x73, // Home
-        0x77, // End
-        0x74, // Page Up
-        0x79, // Page Down
+    private let cursorMovementKeys: Set<Int64> = [
+        0x7B, 0x7C, 0x7E, 0x7D, // Arrow keys
+        0x73, 0x77, 0x74, 0x79, // Home/End/PgUp/PgDn
     ]
     private static let backspaceKey: Int64 = 0x33
 
     public init(injector: TextInjecting) {
         self.engine = VNEngine()
         self.injector = injector
-        applyDefaultSettings()
-    }
-
-    private func applyDefaultSettings() {
-        engine.updateSettings(buildEngineSettings())
+        // Configure engine once at init. These settings worked in production.
+        var s = VNEngine.EngineSettings()
+        s.inputMethod = .telex
+        s.spellCheckEnabled = true
+        s.restoreIfWrongSpelling = true
+        engine.updateSettings(s)
     }
 
     // MARK: - Public API
-
-    public func setInputMethod(_ method: InputMethod) {
-        engine.updateSettings(buildEngineSettings(inputMethod: method))
-    }
-
-    public func setEnglishDetection(enabled: Bool) {
-        isEnglishDetectionEnabled = enabled
-        engine.updateSettings(buildEngineSettings())
-    }
-
-    // MARK: - Private: canonical settings builder
-
-    /// Single source of truth for engine settings.
-    /// Always sets ALL fields so partial EngineSettings() defaults never bleed through.
-    private func buildEngineSettings(inputMethod: InputMethod? = nil) -> VNEngine.EngineSettings {
-        var s = VNEngine.EngineSettings()
-        s.inputMethod = inputMethod ?? currentInputMethod
-        s.spellCheckEnabled = false          // English detection off — keeps typing clean
-        s.restoreIfWrongSpelling = false      // No auto-restore
-        s.quickTelexEnabled = true            // cc→ch, dd→đ, etc.
-        s.modernStyle = true                  // oà/uý (modern orthography)
-        s.quickStartConsonantEnabled = false
-        s.quickEndConsonantEnabled = false
-        s.upperCaseFirstChar = false
-        s.macroEnabled = false
-        s.smartSwitchEnabled = false
-        return s
-    }
 
     public func resetEngine() {
         engine.reset()
@@ -72,10 +39,10 @@ public class KeyboardEventHandler {
         isVietnamese = enabled
         engine.vLanguage = isVietnamese ? 1 : 0
         if !isVietnamese { engine.reset() }
+        onToggle?(isVietnamese)
     }
 
-    /// Undo the last Vietnamese transformation (e.g. revert "việt" → "viet").
-    /// Returns true if the event should be consumed.
+    /// Undo the last Vietnamese transformation (revert "việt" → "viet").
     public func performUndo() -> Bool {
         guard engine.canUndoTyping() else { return false }
         let result = engine.undoTyping()
@@ -102,14 +69,20 @@ public class KeyboardEventHandler {
     private func handleKeyDown(_ event: KeyEvent) -> Bool {
         let keyCode = event.keyCode
 
+        // Ctrl+Space fallback toggle (active when EventTapManager doesn't consume it)
+        if keyCode == 0x31 && event.flags.contains(.control) {
+            setVietnameseMode(!isVietnamese)
+            return true
+        }
+
         if event.isRepeat { return false }
 
-        if Self.passthroughKeys.contains(keyCode) {
+        if passthroughKeys.contains(keyCode) {
             engine.reset()
             return false
         }
 
-        if Self.cursorMovementKeys.contains(keyCode) {
+        if cursorMovementKeys.contains(keyCode) {
             engine.resetWithCursorMoved()
             return false
         }

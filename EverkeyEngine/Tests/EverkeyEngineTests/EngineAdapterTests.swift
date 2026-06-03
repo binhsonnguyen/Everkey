@@ -72,12 +72,21 @@ final class EngineAdapterTests: XCTestCase {
         XCTAssertTrue(handler.isVietnamese)
     }
 
-    func testModifierComboPassesThrough() {
-        // Ctrl+Space (or any modifier combo) should reset engine and pass through — NOT toggle
-        let (handler, injector) = makeHandler()
-        _ = handler.handleEvent(keyDown("a", keyCode: 0x00))
+    func testCtrlSpaceTogglesVietnamese() {
+        let (handler, _) = makeHandler()
+        XCTAssertTrue(handler.isVietnamese)
         let ctrlSpace = KeyEvent(type: .keyDown, keyCode: 0x31, flags: [.control], character: " ")
         let suppress = handler.handleEvent(ctrlSpace)
+        XCTAssertTrue(suppress, "Ctrl+Space should be consumed (toggle)")
+        XCTAssertFalse(handler.isVietnamese)
+    }
+
+    func testOtherModifierComboPassesThrough() {
+        // Cmd+C or similar should reset engine and pass through
+        let (handler, injector) = makeHandler()
+        _ = handler.handleEvent(keyDown("a", keyCode: 0x00))
+        let cmdC = KeyEvent(type: .keyDown, keyCode: 0x08, flags: [.command], character: "c")
+        let suppress = handler.handleEvent(cmdC)
         XCTAssertFalse(suppress)
         XCTAssertEqual(injector.injectedText, "")
     }
