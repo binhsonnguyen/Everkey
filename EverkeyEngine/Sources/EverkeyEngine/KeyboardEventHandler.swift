@@ -5,15 +5,13 @@ public class KeyboardEventHandler {
     private let injector: TextInjecting
     public private(set) var isVietnamese = true
     public private(set) var isEnglishDetectionEnabled: Bool = true
-    public var onToggle: ((Bool) -> Void)?
 
-    private let passthroughKeys: Set<Int64> = [
-        0x24, // Enter
+    private static let passthroughKeys: Set<Int64> = [
+        0x24, // Return
         0x30, // Tab
         0x35, // Escape
     ]
-
-    private let cursorMovementKeys: Set<Int64> = [
+    private static let cursorMovementKeys: Set<Int64> = [
         0x7B, // Left Arrow
         0x7C, // Right Arrow
         0x7E, // Up Arrow
@@ -23,8 +21,7 @@ public class KeyboardEventHandler {
         0x74, // Page Up
         0x79, // Page Down
     ]
-
-    private static let backspaceKeyCode: Int64 = 0x33
+    private static let backspaceKey: Int64 = 0x33
 
     public init(injector: TextInjecting) {
         self.engine = VNEngine()
@@ -37,6 +34,15 @@ public class KeyboardEventHandler {
         settings.inputMethod = .telex
         settings.spellCheckEnabled = true
         settings.restoreIfWrongSpelling = true
+        engine.updateSettings(settings)
+    }
+
+    // MARK: - Public API
+
+    public func setInputMethod(_ method: InputMethod) {
+        var settings = VNEngine.EngineSettings()
+        settings.inputMethod = method
+        settings.spellCheckEnabled = isEnglishDetectionEnabled
         engine.updateSettings(settings)
     }
 
@@ -57,18 +63,24 @@ public class KeyboardEventHandler {
         isVietnamese = enabled
         engine.vLanguage = isVietnamese ? 1 : 0
         if !isVietnamese { engine.reset() }
-        onToggle?(isVietnamese)
+    }
+
+    /// Undo the last Vietnamese transformation (e.g. revert "việt" → "viet").
+    /// Returns true if the event should be consumed.
+    public func performUndo() -> Bool {
+        guard engine.canUndoTyping() else { return false }
+        let result = engine.undoTyping()
+        guard result.shouldConsume else { return false }
+        let text = result.newCharacters.map { $0.unicode(codeTable: .unicode) }.joined()
+        injector.inject(backspaceCount: result.backspaceCount, text: text)
+        return true
     }
 
     public func handleEvent(_ event: KeyEvent) -> Bool {
         switch event.type {
-        case .keyDown:
-            return handleKeyDown(event)
-        case .mouseDown:
-            engine.reset()
-            return false
-        case .other:
-            return false
+        case .keyDown:  return handleKeyDown(event)
+        case .mouseDown: engine.reset(); return false
+        case .other:    return false
         }
     }
 
@@ -81,23 +93,14 @@ public class KeyboardEventHandler {
     private func handleKeyDown(_ event: KeyEvent) -> Bool {
         let keyCode = event.keyCode
 
-        // Toggle hotkey: Ctrl+Space
-        if keyCode == 0x31 && event.flags.contains(.control) {
-            isVietnamese.toggle()
-            engine.vLanguage = isVietnamese ? 1 : 0
-            if !isVietnamese { engine.reset() }
-            onToggle?(isVietnamese)
-            return true
-        }
-
         if event.isRepeat { return false }
 
-        if passthroughKeys.contains(keyCode) {
+        if Self.passthroughKeys.contains(keyCode) {
             engine.reset()
             return false
         }
 
-        if cursorMovementKeys.contains(keyCode) {
+        if Self.cursorMovementKeys.contains(keyCode) {
             engine.resetWithCursorMoved()
             return false
         }
@@ -108,7 +111,7 @@ public class KeyboardEventHandler {
             return false
         }
 
-        if keyCode == Self.backspaceKeyCode {
+        if keyCode == Self.backspaceKey {
             return inject(engine.processBackspace())
         }
 

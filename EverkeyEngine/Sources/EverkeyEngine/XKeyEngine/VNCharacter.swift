@@ -413,7 +413,7 @@ struct VNCharacter: Equatable, Hashable {
 
 // MARK: - Code Tables
 
-enum CodeTable: Int, CaseIterable, Codable {
+public enum CodeTable: Int, CaseIterable, Codable {
     case unicode = 0
     case tcvn3 = 1
     case vniWindows = 2
@@ -437,7 +437,7 @@ enum CodeTable: Int, CaseIterable, Codable {
 
 // MARK: - Input Methods
 
-enum InputMethod: Int, CaseIterable, Codable {
+public enum InputMethod: Int, CaseIterable, Codable {
     // NOTE: `allCases` follows declaration order, so `.adaptive` is listed first
     // to appear at the top of the input-method pickers. Raw values are kept stable
     // (adaptive = 4) for Codable persistence — do not renumber.
@@ -447,13 +447,13 @@ enum InputMethod: Int, CaseIterable, Codable {
     case simpleTelex1 = 2
     case simpleTelex2 = 3
 
-    var displayName: String {
+    public var displayName: String {
         switch self {
         case .adaptive: return "Tự nhận kiểu gõ (Telex + VNI)"
-        case .telex: return "Telex (w→ư, []→ơư)"
+        case .telex: return "Telex"
         case .vni: return "VNI"
-        case .simpleTelex1: return "Simple Telex 1 (w->w, []→[])"
-        case .simpleTelex2: return "Simple Telex 2 (w→ư, []→[])"
+        case .simpleTelex1: return "Simple Telex 1"
+        case .simpleTelex2: return "Simple Telex 2"
         }
     }
 }
