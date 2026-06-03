@@ -24,6 +24,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var languagePerApp: [String: Bool] = [:]
     private var previousBundleID: String?
 
+    // MARK: - Hotkey capture (for settings recorder)
+
+    /// When set, the next valid keyDown event is captured as a hotkey instead of normal processing.
+    var hotkeyCaptureCallback: ((Hotkey) -> Void)?
+
     // MARK: - Modifier-only hotkey state (tracked in onEvent closure)
 
     private var modOnlyReached = false
@@ -65,12 +70,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusMenuViewModel.onQuit = { NSApplication.shared.terminate(nil) }
 
         let menuController = NSHostingController(rootView: StatusMenuView(viewModel: statusMenuViewModel))
-        menuController.view.frame = NSRect(x: 0, y: 0, width: 240, height: 140)
         popover = NSPopover()
         popover.behavior = .transient
         popover.animates = true
         popover.contentViewController = menuController
-        popover.contentSize = NSSize(width: 240, height: 140)
 
         keyboardHandler.onToggle = { [weak self] isVietnamese in
             self?.updateStatusBarIcon(isVietnamese: isVietnamese)
@@ -102,7 +105,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func openSettings() {
         popover.performClose(nil)
         if settingsWindowController == nil {
-            settingsWindowController = SettingsWindowController(settings: settings)
+            settingsWindowController = SettingsWindowController(
+                settings: settings,
+                onStartCapture: { [weak self] callback in
+                    self?.hotkeyCaptureCallback = callback
+                },
+                onCancelCapture: { [weak self] in
+                    self?.hotkeyCaptureCallback = nil
+                }
+            )
         }
         settingsWindowController?.showSettings()
     }
@@ -112,6 +123,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupEventTap() {
         eventTapManager.onEvent = { [weak self] proxy, type, event in
             guard let self else { return Unmanaged.passUnretained(event) }
+
+            // ── Hotkey capture (settings recorder) ────────────────────────────
+            if let capture = self.hotkeyCaptureCallback, type == .keyDown {
+                let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+                let eventMods = ModifierFlags(from: event.flags)
+                if keyCode == 0x35 {               // Escape = cancel
+                    self.hotkeyCaptureCallback = nil
+                    return nil
+                } else if !eventMods.isEmpty {     // Valid: needs at least one modifier
+                    let newHotkey = Hotkey(keyCode: keyCode, modifiers: eventMods)
+                    self.hotkeyCaptureCallback = nil
+                    DispatchQueue.main.async { capture(newHotkey) }
+                    return nil
+                }
+            }
 
             // ── Configurable toggle hotkey ─────────────────────────────────────
             let hotkey = self.settings.toggleHotkey

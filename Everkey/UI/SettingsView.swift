@@ -3,37 +3,49 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var settings: EverkeySettings
 
+    /// Injected từ AppDelegate — dùng EventTapManager để capture hotkey
+    var onStartCapture: ((@escaping (Hotkey) -> Void) -> Void)?
+    var onCancelCapture: (() -> Void)?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             settingsGroup(header: "PHÍM TẮT") {
                 settingsRow(label: "Chuyển VN/EN") {
-                    HotkeyRecorderView(hotkey: $settings.toggleHotkey)
-                        .frame(maxWidth: 220)
+                    HotkeyRecorderView(
+                        hotkey: $settings.toggleHotkey,
+                        onStartCapture: onStartCapture,
+                        onCancelCapture: onCancelCapture
+                    )
+                    .frame(maxWidth: 220)
                 }
 
                 Divider()
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Bật hoàn tác gõ (undo typing)", isOn: $settings.undoEnabled)
+                    Toggle("Bật hoàn tác gõ", isOn: $settings.undoEnabled)
                     if settings.undoEnabled {
                         HStack {
                             Text("Phím hoàn tác:")
                                 .foregroundColor(.secondary)
-                                .frame(width: 120, alignment: .leading)
-                            HotkeyRecorderView(hotkey: undoHotkeyBinding)
-                                .frame(maxWidth: 220)
+                                .frame(width: 110, alignment: .leading)
+                            HotkeyRecorderView(
+                                hotkey: undoHotkeyBinding,
+                                onStartCapture: onStartCapture,
+                                onCancelCapture: onCancelCapture
+                            )
+                            .frame(maxWidth: 220)
                         }
                     }
                 }
+                .padding(.horizontal, 0)
+                .padding(.vertical, 4)
             }
 
             Spacer()
         }
         .padding(20)
-        .frame(width: 460, height: 200)
+        .frame(width: 460, height: settings.undoEnabled ? 230 : 180)
     }
-
-    // MARK: - Helpers
 
     private func settingsGroup<Content: View>(header: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -61,7 +73,7 @@ struct SettingsView: View {
 
     private var undoHotkeyBinding: Binding<Hotkey> {
         Binding(
-            get: { settings.undoHotkey ?? Hotkey(keyCode: 0x35, modifiers: [], isModifierOnly: false) },
+            get: { settings.undoHotkey ?? Hotkey(keyCode: 0x35, modifiers: []) },
             set: { settings.undoHotkey = $0 }
         )
     }

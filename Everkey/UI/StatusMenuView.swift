@@ -36,7 +36,8 @@ struct StatusMenuView: View {
             }
         }
         .padding(.vertical, 4)
-        .frame(width: 240)
+        .frame(width: 260)
+        .fixedSize(horizontal: true, vertical: true)
     }
 
     // MARK: - Helpers
