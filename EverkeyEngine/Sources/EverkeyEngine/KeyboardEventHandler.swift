@@ -30,28 +30,37 @@ public class KeyboardEventHandler {
     }
 
     private func applyDefaultSettings() {
-        var settings = VNEngine.EngineSettings()
-        settings.inputMethod = .simpleTelex1
-        settings.spellCheckEnabled = false
-        settings.restoreIfWrongSpelling = false
-        engine.updateSettings(settings)
+        engine.updateSettings(buildEngineSettings())
     }
 
     // MARK: - Public API
 
     public func setInputMethod(_ method: InputMethod) {
-        var settings = VNEngine.EngineSettings()
-        settings.inputMethod = method
-        settings.spellCheckEnabled = isEnglishDetectionEnabled
-        engine.updateSettings(settings)
+        engine.updateSettings(buildEngineSettings(inputMethod: method))
     }
 
     public func setEnglishDetection(enabled: Bool) {
         isEnglishDetectionEnabled = enabled
-        var settings = VNEngine.EngineSettings()
-        settings.inputMethod = currentInputMethod
-        settings.spellCheckEnabled = enabled
-        engine.updateSettings(settings)
+        engine.updateSettings(buildEngineSettings())
+    }
+
+    // MARK: - Private: canonical settings builder
+
+    /// Single source of truth for engine settings.
+    /// Always sets ALL fields so partial EngineSettings() defaults never bleed through.
+    private func buildEngineSettings(inputMethod: InputMethod? = nil) -> VNEngine.EngineSettings {
+        var s = VNEngine.EngineSettings()
+        s.inputMethod = inputMethod ?? currentInputMethod
+        s.spellCheckEnabled = false          // English detection off — keeps typing clean
+        s.restoreIfWrongSpelling = false      // No auto-restore
+        s.quickTelexEnabled = true            // cc→ch, dd→đ, etc.
+        s.modernStyle = true                  // oà/uý (modern orthography)
+        s.quickStartConsonantEnabled = false
+        s.quickEndConsonantEnabled = false
+        s.upperCaseFirstChar = false
+        s.macroEnabled = false
+        s.smartSwitchEnabled = false
+        return s
     }
 
     public func resetEngine() {

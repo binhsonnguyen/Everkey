@@ -110,9 +110,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         popover = NSPopover()
         popover.behavior = .transient
         popover.animates = true
-        popover.contentViewController = NSHostingController(
-            rootView: StatusMenuView(viewModel: statusMenuViewModel)
-        )
+        let menuController = NSHostingController(rootView: StatusMenuView(viewModel: statusMenuViewModel))
+        menuController.view.frame = NSRect(x: 0, y: 0, width: 240, height: 140)
+        popover.contentViewController = menuController
+        popover.contentSize = NSSize(width: 240, height: 140)
 
         updateStatusBarIcon(isVietnamese: true)
 

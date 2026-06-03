@@ -19,10 +19,10 @@ class SharedSettings {
     private init() {}
 
     // Return true so engine's own vCheckSpelling remains the effective control.
-    var spellCheckEnabled: Bool { true }
+    var spellCheckEnabled: Bool { false }
     var modernStyle: Bool { true }
-    var restoreIfWrongSpelling: Bool { true }
-    var instantRestoreOnWrongSpelling: Bool { true }
+    var restoreIfWrongSpelling: Bool { false }
+    var instantRestoreOnWrongSpelling: Bool { false }
 
     func isWordInUserDictionary(_ word: String) -> Bool { false }
 
