@@ -1,78 +1,62 @@
 import SwiftUI
-import EverkeyEngine
 
 struct SettingsView: View {
     @ObservedObject var settings: EverkeySettings
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            settingsSection(header: "PHÍM TẮT") {
+        VStack(alignment: .leading, spacing: 20) {
+            settingsGroup(header: "PHÍM TẮT") {
                 settingsRow(label: "Chuyển VN/EN") {
                     HotkeyRecorderView(hotkey: $settings.toggleHotkey)
+                        .frame(maxWidth: 220)
                 }
-                Divider().padding(.leading, 16)
-                VStack(alignment: .leading, spacing: 6) {
-                    Toggle("Hoàn tác gõ", isOn: $settings.undoEnabled)
-                    if settings.undoEnabled {
-                        HotkeyRecorderView(hotkey: undoHotkeyBinding)
-                            .padding(.leading, 0)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-            }
 
-            settingsSection(header: "NHẬP LIỆU") {
-                settingsRow(label: "Kiểu gõ") {
-                    Picker("", selection: $settings.inputMethod) {
-                        Text(InputMethod.telex.displayName).tag(InputMethod.telex)
-                        Text(InputMethod.vni.displayName).tag(InputMethod.vni)
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Bật hoàn tác gõ (undo typing)", isOn: $settings.undoEnabled)
+                    if settings.undoEnabled {
+                        HStack {
+                            Text("Phím hoàn tác:")
+                                .foregroundColor(.secondary)
+                                .frame(width: 120, alignment: .leading)
+                            HotkeyRecorderView(hotkey: undoHotkeyBinding)
+                                .frame(maxWidth: 220)
+                        }
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 180)
-                }
-                Divider().padding(.leading, 16)
-                settingsRow(label: "Phát hiện tiếng Anh") {
-                    Toggle("", isOn: $settings.spellCheckEnabled)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
                 }
             }
 
             Spacer()
         }
-        .padding()
-        .frame(width: 480, height: 320)
+        .padding(20)
+        .frame(width: 460, height: 200)
     }
 
     // MARK: - Helpers
 
-    private func settingsSection<Content: View>(header: String, @ViewBuilder content: () -> Content) -> some View {
+    private func settingsGroup<Content: View>(header: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(header)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
                 .padding(.bottom, 6)
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
                 content()
             }
+            .padding(12)
             .background(Color(nsColor: .controlBackgroundColor))
             .cornerRadius(8)
         }
     }
 
-    private func settingsRow<Content: View>(label: String, @ViewBuilder trailing: () -> Content) -> some View {
-        HStack {
+    private func settingsRow<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .center) {
             Text(label)
-                .frame(width: 160, alignment: .leading)
+                .frame(width: 120, alignment: .leading)
+            content()
             Spacer()
-            trailing()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 
     private var undoHotkeyBinding: Binding<Hotkey> {

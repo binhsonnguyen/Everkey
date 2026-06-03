@@ -10,8 +10,8 @@ class EverkeySettings: ObservableObject {
     @Published var toggleHotkey: Hotkey = Hotkey(keyCode: 49, modifiers: [.control])  // Ctrl+Space
     @Published var undoEnabled: Bool = false
     @Published var undoHotkey: Hotkey? = nil        // nil = Escape
-    @Published var inputMethod: InputMethod = .telex
-    @Published var spellCheckEnabled: Bool = true
+    @Published var inputMethod: InputMethod = .simpleTelex1
+    @Published var spellCheckEnabled: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
 

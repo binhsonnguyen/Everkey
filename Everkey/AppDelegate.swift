@@ -75,14 +75,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] enabled in self?.keyboardHandler.setEnglishDetection(enabled: enabled) }
             .store(in: &cancellables)
 
-        // Sync settings ↔ input method changes from status menu
-        settings.$inputMethod
-            .sink { [weak self] method in self?.statusMenuViewModel.inputMethod = method }
-            .store(in: &cancellables)
-        settings.$spellCheckEnabled
-            .sink { [weak self] enabled in self?.statusMenuViewModel.spellCheckEnabled = enabled }
-            .store(in: &cancellables)
-
         // Keep recording state in sync with EventTapManager
         NotificationCenter.default.addObserver(forName: .hotkeyRecordingStateChanged, object: nil, queue: .main) { [weak self] note in
             let recording = (note.userInfo?["isRecording"] as? Bool) ?? false
@@ -97,8 +89,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusMenuViewModel = StatusBarViewModel()
         statusMenuViewModel.isVietnamese = keyboardHandler.isVietnamese
-        statusMenuViewModel.inputMethod = settings.inputMethod
-        statusMenuViewModel.spellCheckEnabled = settings.spellCheckEnabled
 
         statusMenuViewModel.onToggleVietnamese = { [weak self] in
             guard let self else { return }
@@ -106,16 +96,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self.keyboardHandler.setVietnameseMode(newState)
             self.statusMenuViewModel.isVietnamese = newState
             self.updateStatusBarIcon(isVietnamese: newState)
-        }
-
-        statusMenuViewModel.onInputMethodChanged = { [weak self] method in
-            self?.settings.inputMethod = method
-            self?.statusMenuViewModel.inputMethod = method
-        }
-
-        statusMenuViewModel.onSpellCheckChanged = { [weak self] enabled in
-            self?.settings.spellCheckEnabled = enabled
-            self?.statusMenuViewModel.spellCheckEnabled = enabled
         }
 
         statusMenuViewModel.onOpenSettings = { [weak self] in

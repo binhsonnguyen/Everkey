@@ -31,9 +31,9 @@ public class KeyboardEventHandler {
 
     private func applyDefaultSettings() {
         var settings = VNEngine.EngineSettings()
-        settings.inputMethod = .telex
-        settings.spellCheckEnabled = true
-        settings.restoreIfWrongSpelling = true
+        settings.inputMethod = .simpleTelex1
+        settings.spellCheckEnabled = false
+        settings.restoreIfWrongSpelling = false
         engine.updateSettings(settings)
     }
 
