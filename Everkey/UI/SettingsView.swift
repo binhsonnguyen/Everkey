@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var settings: EverkeySettings
+    @StateObject private var launchAtLogin = LaunchAtLogin()
 
     /// Injected từ AppDelegate — dùng EventTapManager để capture hotkey
     var onStartCapture: ((@escaping (Hotkey) -> Void) -> Void)?
@@ -9,6 +10,15 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            if launchAtLogin.isAvailable {
+                settingsGroup(header: "HỆ THỐNG") {
+                    Toggle("Khởi động cùng macOS", isOn: Binding(
+                        get: { launchAtLogin.isEnabled },
+                        set: { launchAtLogin.setEnabled($0) }
+                    ))
+                }
+            }
+
             settingsGroup(header: "PHÍM TẮT") {
                 settingsRow(label: "Chuyển VN/EN") {
                     HotkeyRecorderView(
@@ -44,7 +54,13 @@ struct SettingsView: View {
             Spacer()
         }
         .padding(20)
-        .frame(width: 460, height: settings.undoEnabled ? 230 : 180)
+        .frame(width: 460, height: contentHeight)
+    }
+
+    private var contentHeight: CGFloat {
+        var height: CGFloat = settings.undoEnabled ? 230 : 180
+        if launchAtLogin.isAvailable { height += 76 }
+        return height
     }
 
     private func settingsGroup<Content: View>(header: String, @ViewBuilder content: () -> Content) -> some View {
