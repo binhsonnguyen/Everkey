@@ -1,6 +1,7 @@
 #!/bin/bash
 # Build và chạy Everkey từ DerivedData.
-# Grant accessibility permission một lần cho đường dẫn này — không bao giờ bị revoke.
+# Quyền Accessibility giữ qua mọi lần build nhờ ký bằng chứng chỉ Apple Development ổn định
+# (project.yml: DEVELOPMENT_TEAM + CODE_SIGN_IDENTITY). Xem docs/lessons.md bài 8.
 
 set -e
 

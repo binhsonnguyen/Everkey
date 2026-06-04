@@ -19,6 +19,8 @@ targets:
         INFOPLIST_FILE: Everkey/Info.plist
         CODE_SIGN_ENTITLEMENTS: Everkey/Everkey.entitlements
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: AKMK5AW3D9
+        CODE_SIGN_IDENTITY: "Apple Development"
         MACOSX_DEPLOYMENT_TARGET: "12.0"
         SWIFT_VERSION: "5.7"
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"

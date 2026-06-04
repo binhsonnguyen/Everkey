@@ -70,6 +70,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
         vietnameseMenuItem.target = self
         vietnameseMenuItem.state = .on
+        // macOS 26 dành cột icon cho menu; gắn symbol để item này thẳng hàng với
+        // Settings/Quit (vốn được hệ thống tự gán icon) thay vì thụt sang trái.
+        vietnameseMenuItem.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "Gõ Tiếng Việt")
         menu.addItem(vietnameseMenuItem)
 
         menu.addItem(NSMenuItem.separator())
