@@ -11,6 +11,10 @@ struct Hotkey: Codable, Equatable {
         self.isModifierOnly = isModifierOnly
     }
 
+    /// Ô phím tắt để trống (nút ✕ đặt keyCode 0, không modifier). Phải không bao giờ khớp phím
+    /// thật — nếu không sẽ nuốt phím 'a' (vốn cũng có keyCode 0).
+    var isUnset: Bool { keyCode == 0 && modifiers.isEmpty && !isModifierOnly }
+
     var displayString: String {
         var parts: [String] = []
         if modifiers.contains(.function) { parts.append("Fn") }

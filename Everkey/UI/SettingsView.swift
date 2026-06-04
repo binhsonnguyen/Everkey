@@ -48,6 +48,7 @@ struct SettingsView: View {
                             .frame(maxWidth: 220)
                             Spacer()
                         }
+                        Toggle("Hoặc nhấn Shift trái + Shift phải", isOn: $settings.undoUsesDoubleShift)
                     }
                 }
                 .padding(.horizontal, 0)
@@ -61,7 +62,7 @@ struct SettingsView: View {
     }
 
     private var contentHeight: CGFloat {
-        var height: CGFloat = settings.undoEnabled ? 230 : 180
+        var height: CGFloat = settings.undoEnabled ? 262 : 180
         if launchAtLogin.isAvailable { height += 76 }
         return height
     }

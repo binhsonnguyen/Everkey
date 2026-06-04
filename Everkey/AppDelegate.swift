@@ -31,6 +31,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var modOnlyReached = false
     private var modOnlyTriggered = false
 
+    // MARK: - Double-Shift undo state
+
+    private var doubleShiftDetector = DoubleShiftUndoDetector()
+
+    // Device-dependent flag bits (IOKit IOLLEvent.h) phân biệt Shift trái/phải —
+    // điều mà CGEventFlags.maskShift không làm được.
+    private static let leftShiftDeviceMask: UInt64 = 0x2
+    private static let rightShiftDeviceMask: UInt64 = 0x4
+
     private static let browserBundleIDs: Set<String> = [
         "com.apple.Safari", "com.google.Chrome", "com.google.Chrome.canary",
         "com.brave.Browser", "com.microsoft.edgemac", "company.thebrowser.Browser",
@@ -164,7 +173,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 } else if type == .keyDown && self.modOnlyReached {
                     self.modOnlyReached = false; self.modOnlyTriggered = true
                 }
-            } else if type == .keyDown {
+            } else if type == .keyDown && !hotkey.isUnset {
                 let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
                 let eventMods = ModifierFlags(from: event.flags)
                 if keyCode == hotkey.keyCode && eventMods == hotkey.modifiers {
@@ -173,12 +182,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
 
+            // ── Undo bằng Shift trái + Shift phải ──────────────────────────────
+            // Không suppress sự kiện — chỉ quan sát. Phải biết có gõ chữ trong lúc giữ Shift hay
+            // không để phân biệt cử chỉ undo biệt lập với việc gõ chữ hoa (xem DoubleShiftUndoDetector).
+            if self.settings.undoEnabled && self.settings.undoUsesDoubleShift {
+                if type == .flagsChanged {
+                    let raw = event.flags.rawValue
+                    let leftShiftDown = raw & Self.leftShiftDeviceMask != 0
+                    let rightShiftDown = raw & Self.rightShiftDeviceMask != 0
+                    if self.doubleShiftDetector.update(leftShiftDown: leftShiftDown, rightShiftDown: rightShiftDown) {
+                        DispatchQueue.main.async { _ = self.keyboardHandler.performUndo() }
+                    }
+                } else if type == .keyDown {
+                    self.doubleShiftDetector.noteKeyDown()
+                }
+            }
+
             // ── Configurable undo hotkey ───────────────────────────────────────
             if self.settings.undoEnabled && type == .keyDown {
                 let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
                 let eventMods = ModifierFlags(from: event.flags)
-                let triggered = self.settings.undoHotkey.map { keyCode == $0.keyCode && eventMods == $0.modifiers }
-                    ?? (keyCode == 0x35 && eventMods.isEmpty)
+                let triggered: Bool
+                if let undoHotkey = self.settings.undoHotkey {
+                    triggered = !undoHotkey.isUnset && keyCode == undoHotkey.keyCode && eventMods == undoHotkey.modifiers
+                } else {
+                    triggered = keyCode == 0x35 && eventMods.isEmpty   // mặc định: Escape
+                }
                 if triggered {
                     DispatchQueue.main.async { _ = self.keyboardHandler.performUndo() }
                     return nil

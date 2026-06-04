@@ -9,6 +9,7 @@ class EverkeySettings: ObservableObject {
     @Published var toggleHotkey: Hotkey = Hotkey(keyCode: 49, modifiers: [.control])  // Ctrl+Space
     @Published var undoEnabled: Bool = false
     @Published var undoHotkey: Hotkey? = nil        // nil = Escape
+    @Published var undoUsesDoubleShift: Bool = false  // hoàn tác khi nhấn Shift trái + Shift phải
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -17,7 +18,8 @@ class EverkeySettings: ObservableObject {
         Publishers.MergeMany(
             $toggleHotkey.map { _ in () }.eraseToAnyPublisher(),
             $undoEnabled.map { _ in () }.eraseToAnyPublisher(),
-            $undoHotkey.map { _ in () }.eraseToAnyPublisher()
+            $undoHotkey.map { _ in () }.eraseToAnyPublisher(),
+            $undoUsesDoubleShift.map { _ in () }.eraseToAnyPublisher()
         )
         .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
         .sink { [weak self] in self?.save() }
@@ -28,7 +30,8 @@ class EverkeySettings: ObservableObject {
         let data = Snapshot(
             toggleHotkey: toggleHotkey,
             undoEnabled: undoEnabled,
-            undoHotkey: undoHotkey
+            undoHotkey: undoHotkey,
+            undoUsesDoubleShift: undoUsesDoubleShift
         )
         if let encoded = try? JSONEncoder().encode(data) {
             UserDefaults.standard.set(encoded, forKey: kSettingsKey)
@@ -41,11 +44,13 @@ class EverkeySettings: ObservableObject {
         toggleHotkey = snapshot.toggleHotkey
         undoEnabled = snapshot.undoEnabled
         undoHotkey = snapshot.undoHotkey
+        undoUsesDoubleShift = snapshot.undoUsesDoubleShift ?? false
     }
 
     private struct Snapshot: Codable {
         var toggleHotkey: Hotkey
         var undoEnabled: Bool
         var undoHotkey: Hotkey?
+        var undoUsesDoubleShift: Bool?   // optional: cấu hình cũ thiếu key vẫn giải mã được
     }
 }
