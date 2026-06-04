@@ -81,5 +81,5 @@ bash scripts/release.sh          # build Release → ký → dist/Everkey-<ver>.
 
 Mã nguồn Everkey: [MIT](LICENSE).
 
-Engine xử lý tiếng Việt lấy từ **XKey** (MIT), vốn là bản port của **OpenKey** (GPL).
-Xem [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Engine xử lý tiếng Việt lấy từ **XKey** ([MIT](https://github.com/xmannv/xkey)),
+với lời cảm ơn tới **OpenKey** và **UniKey**. Chi tiết: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
