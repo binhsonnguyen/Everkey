@@ -26,3 +26,8 @@ dist/
 
 # Claude Code
 .claude/
+
+# Tài liệu nội bộ — không publish (giữ local)
+CLAUDE.md
+docs/
+stories/
