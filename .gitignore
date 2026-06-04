@@ -21,6 +21,8 @@ DerivedData/
 
 # Build artifacts
 Everkey.app/
+dist/
+.build-release/
 
 # Claude Code
 .claude/
