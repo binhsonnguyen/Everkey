@@ -4,7 +4,7 @@
 
 # Everkey
 
-Bộ gõ tiếng Việt gọn nhẹ cho macOS — kiểu gõ Telex, chạy ở thanh menu.
+Bộ gõ tiếng Việt cho macOS — đơn giản, hoạt động được.
 
 </div>
 
@@ -12,70 +12,44 @@ Bộ gõ tiếng Việt gọn nhẹ cho macOS — kiểu gõ Telex, chạy ở t
 
 ## Tính năng
 
-- ⌨️ **Gõ Telex** tiếng Việt với kiểm tra chính tả và tự khôi phục.
-- 🔄 **Bật/tắt nhanh** bằng phím tắt (mặc định **Ctrl + Space**).
-- ↩️ **Hoàn tác** từ vừa gõ (tùy chọn): bằng phím Esc, phím tắt tự chọn, hoặc nhấn **Shift trái + Shift phải**.
-- 🚀 **Khởi động cùng hệ thống** (tùy chọn).
-- 🪶 Nhẹ, chạy nền ở thanh menu, không chiếm Dock.
+- ⌨️ Bộ gõ tiếng Việt hoạt động được.
+- Chỉ có **một kiểu gõ duy nhất: Simple Telex**.
+- ↩️ Cho phép **hoàn tác bằng 2 phím Shift** (Shift trái + Shift phải).
 
-> Yêu cầu: **macOS 12.0 trở lên** (Apple Silicon & Intel).
+> Yêu cầu: macOS 12.0 trở lên (Apple Silicon & Intel).
 
 ## Cài đặt
 
-1. Tải `Everkey-x.y.z.dmg` ở mục [Releases](../../releases).
-2. Mở `.dmg`, kéo **Everkey** vào thư mục **Applications**.
-3. Mở Everkey lần đầu — macOS sẽ chặn vì app chưa ký bởi Apple (xem mục dưới).
-4. Cấp quyền **Accessibility** khi được hỏi (bắt buộc để bộ gõ hoạt động).
+**Homebrew:**
 
-### Mở app lần đầu (qua cửa Gatekeeper)
+```bash
+brew install --cask --no-quarantine binhsonnguyen/everkey/everkey
+```
 
-Everkey không trả phí Apple Developer nên macOS sẽ báo *"Apple could not verify…"*.
-Cách mở (macOS 15 Sequoia / macOS 26 trở lên):
+**Hoặc tải trực tiếp:** lấy file `.dmg` mới nhất ở trang [Releases](../../releases),
+mở ra rồi kéo **Everkey** vào thư mục **Applications**.
 
-1. Bấm **Done** ở hộp thoại cảnh báo.
-2. Vào **System Settings → Privacy & Security**, kéo xuống mục **Security**.
-3. Bấm **Open Anyway** bên cạnh dòng "Everkey was blocked", nhập mật khẩu admin.
-4. Mở lại Everkey — từ giờ chạy bình thường.
+### Mở app lần đầu
 
-> Chỉ cần làm **một lần** lúc cài đầu. Các bản cập nhật sau **không** phải làm lại,
-> và quyền Accessibility cũng **được giữ nguyên** qua các bản cập nhật.
+Everkey không ký bởi Apple nên macOS sẽ chặn lần đầu. Mở bằng:
 
-### Cấp quyền Accessibility
+> **System Settings → Privacy & Security → Security → Open Anyway**
 
-**System Settings → Privacy & Security → Accessibility** → bật công tắc **Everkey**.
-Bộ gõ cần quyền này để đọc/sửa phím gõ toàn hệ thống.
+(Cài bằng Homebrew với `--no-quarantine` thì bỏ qua được bước này.)
 
-## Sử dụng
+### Cấp quyền
 
-- **Ctrl + Space**: bật/tắt gõ tiếng Việt (đổi được trong cài đặt).
-- Nhấp **biểu tượng bàn phím** trên thanh menu để mở menu: bật/tắt, mở Cài đặt, thoát.
-- Trong **Cài đặt**: đổi phím tắt, bật hoàn tác, bật khởi động cùng hệ thống.
+Bật Everkey trong **System Settings → Privacy & Security → Accessibility**.
+Bộ gõ cần quyền này để hoạt động.
 
-## Build từ mã nguồn
+## Build từ nguồn
 
 Cần [XcodeGen](https://github.com/yonaskolb/XcodeGen) và Xcode.
 
 ```bash
-bash scripts/setup.sh     # sinh Everkey.xcodeproj từ project.yml (chạy 1 lần)
+bash scripts/setup.sh     # sinh Everkey.xcodeproj (chạy 1 lần)
 bash scripts/dev.sh       # build + chạy bản dev
 ```
-
-Chạy test của engine:
-
-```bash
-cd EverkeyEngine && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
-```
-
-## Đóng bản phát hành (cho maintainer)
-
-```bash
-bash scripts/make-icon.sh        # (khi cần) sinh lại Everkey/AppIcon.icns
-bash scripts/setup-signing.sh    # tạo cert self-signed cố định — CHẠY MỘT LẦN
-bash scripts/release.sh          # build Release → ký → dist/Everkey-<ver>.dmg
-```
-
-> ⚠️ Cert phát hành nằm ở `~/.everkey-signing/` — **hãy sao lưu**. Mất nó thì các bản
-> cập nhật sau sẽ bị macOS coi là app khác, người dùng phải cấp lại quyền từ đầu.
 
 ## Giấy phép
 
