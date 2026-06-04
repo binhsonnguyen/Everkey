@@ -53,6 +53,7 @@ struct HotkeyRecorderView: View {
                     .font(.system(size: 14))
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)  // ẩn mũi tên mặc định của Menu, tránh chồng lên icon của mình
             .frame(width: 22)
 
             Button(action: clear) {

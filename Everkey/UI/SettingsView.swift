@@ -34,16 +34,19 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Toggle("Bật hoàn tác gõ", isOn: $settings.undoEnabled)
                     if settings.undoEnabled {
-                        HStack {
+                        // Cùng cấu trúc với settingsRow (label 120 + Spacer cuối) để field
+                        // và cụm icon thẳng cột với hàng "Chuyển VN/EN" phía trên.
+                        HStack(alignment: .center) {
                             Text("Phím hoàn tác:")
                                 .foregroundColor(.secondary)
-                                .frame(width: 110, alignment: .leading)
+                                .frame(width: 120, alignment: .leading)
                             HotkeyRecorderView(
                                 hotkey: undoHotkeyBinding,
                                 onStartCapture: onStartCapture,
                                 onCancelCapture: onCancelCapture
                             )
                             .frame(maxWidth: 220)
+                            Spacer()
                         }
                     }
                 }
