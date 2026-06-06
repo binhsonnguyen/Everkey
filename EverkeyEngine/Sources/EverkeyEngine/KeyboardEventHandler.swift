@@ -37,6 +37,7 @@ public class KeyboardEventHandler {
         settings.inputMethod = .telex
         settings.spellCheckEnabled = true
         settings.restoreIfWrongSpelling = true
+        settings.quickTelexEnabled = false
         engine.updateSettings(settings)
     }
 
