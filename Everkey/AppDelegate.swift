@@ -40,12 +40,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private static let leftShiftDeviceMask: UInt64 = 0x2
     private static let rightShiftDeviceMask: UInt64 = 0x4
 
-    private static let browserBundleIDs: Set<String> = [
-        "com.apple.Safari", "com.google.Chrome", "com.google.Chrome.canary",
-        "com.brave.Browser", "com.microsoft.edgemac", "company.thebrowser.Browser",
-        "com.operasoftware.Opera", "com.vivaldi.Vivaldi", "org.mozilla.firefox",
-    ]
-
     // MARK: - Launch
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -242,7 +236,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         keyboardHandler.resetEngine()
         let saved = languagePerApp[bundleID] ?? true
         keyboardHandler.setVietnameseMode(saved)
-        textInjector.needsAutocompleteFix = Self.browserBundleIDs.contains(bundleID)
+        AppBehaviorDetector.shared.updateApp(bundleID: bundleID)
         previousBundleID = bundleID
     }
 
