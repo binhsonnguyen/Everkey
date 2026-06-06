@@ -57,12 +57,10 @@ struct SettingsView: View {
 
             Spacer()
 
-            HStack {
-                Spacer()
-                Text("Everkey \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-            }
+            Text("Everkey \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(20)
         .frame(width: 460, height: contentHeight)
