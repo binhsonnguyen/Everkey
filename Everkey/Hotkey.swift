@@ -33,6 +33,24 @@ struct Hotkey: Codable, Equatable {
         return parts.joined()
     }
 
+    /// Ký tự cho NSMenuItem.keyEquivalent. Trả về "" nếu không thể hiển thị (modifier-only, unset).
+    var menuKeyEquivalent: String {
+        if isModifierOnly || isUnset { return "" }
+        if keyCode == 0x31 { return " " }
+        guard let char = keyCodeToCharacter(keyCode) else { return "" }
+        return char.lowercased()
+    }
+
+    var menuModifierMask: NSEvent.ModifierFlags {
+        var mask: NSEvent.ModifierFlags = []
+        if modifiers.contains(.control)  { mask.insert(.control) }
+        if modifiers.contains(.option)   { mask.insert(.option) }
+        if modifiers.contains(.shift)    { mask.insert(.shift) }
+        if modifiers.contains(.command)  { mask.insert(.command) }
+        if modifiers.contains(.function) { mask.insert(.function) }
+        return mask
+    }
+
     func matches(event: CGEvent, type: CGEventType) -> Bool {
         if isModifierOnly { return false }
         guard type == .keyDown else { return false }

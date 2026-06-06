@@ -1,4 +1,5 @@
 import Cocoa
+import Combine
 import SwiftUI
 import EverkeyEngine
 
@@ -10,6 +11,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let eventTapManager = EventTapManager()
     private let textInjector = CGTextInjector()
     private var keyboardHandler: KeyboardEventHandler!
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Status bar
 
@@ -61,6 +63,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         keyboardHandler.onToggle = { [weak self] isVietnamese in
             self?.updateStatusBarIcon(isVietnamese: isVietnamese)
         }
+
+        settings.$toggleHotkey
+            .receive(on: RunLoop.main)
+            .sink { [weak self] hotkey in self?.applyToggleHotkeyToMenuItem(hotkey) }
+            .store(in: &cancellables)
     }
 
     private func buildMenu() -> NSMenu {
@@ -97,6 +104,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ))
 
         return menu
+    }
+
+    private func applyToggleHotkeyToMenuItem(_ hotkey: Hotkey) {
+        vietnameseMenuItem?.keyEquivalent = hotkey.menuKeyEquivalent
+        vietnameseMenuItem?.keyEquivalentModifierMask = hotkey.menuModifierMask
     }
 
     @objc private func toggleVietnamese() {
