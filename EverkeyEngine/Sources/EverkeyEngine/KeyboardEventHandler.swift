@@ -99,6 +99,8 @@ public class KeyboardEventHandler {
             return true
         }
 
+        if !isVietnamese { return false }
+
         if event.isRepeat { return false }
 
         if passthroughKeys.contains(keyCode) {

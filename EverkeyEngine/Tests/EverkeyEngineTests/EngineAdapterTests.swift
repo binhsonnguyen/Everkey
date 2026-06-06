@@ -75,6 +75,16 @@ final class EngineAdapterTests: XCTestCase {
         XCTAssertTrue(handler.isVietnamese)
     }
 
+    func testEnglishModeDoesNotProcessVietnamese() {
+        // After switching to English, Telex sequences must pass through raw — no Vietnamese output.
+        let (handler, injector) = makeHandler()
+        handler.setVietnameseMode(false)
+        _ = handler.handleEvent(keyDown("d", keyCode: 0x02))
+        let suppress = handler.handleEvent(keyDown("d", keyCode: 0x02))
+        XCTAssertFalse(suppress, "In English mode, 'dd' must not be suppressed")
+        XCTAssertEqual(injector.injectedText, "", "In English mode, 'dd' must not produce 'đ'")
+    }
+
     func testMouseDownResetsEngine() {
         // Typing then mouse click: engine resets, no injection
         let (handler, injector) = makeHandler()
